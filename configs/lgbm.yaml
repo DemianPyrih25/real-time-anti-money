@@ -1,0 +1,62 @@
+# LightGBM on per-transaction features (M1). PLAN.md §6 M1.
+feature_set: tx
+
+train_split: train
+early_stopping_split: val_early
+
+num_boost_round: 3000
+early_stopping_rounds: 100
+eval_metric: average_precision
+
+base_params:
+  objective: binary
+  learning_rate: 0.05
+  num_leaves: 63
+  min_data_in_leaf: 100
+  feature_fraction: 0.9
+  bagging_fraction: 0.8          # < 1 so that seeds differ
+  bagging_freq: 1
+  lambda_l2: 1.0
+  scale_pos_weight: 10.0
+  max_bin: 255
+  verbose: -1
+
+optuna:
+  n_trials: 25
+  seed: 0
+  n_startup_trials: 8
+  # Wall-clock bound on the search (s): it stops at n_trials or here, whichever comes first,
+  # leaving room for the seed finalists inside the job's 3 h per-attempt timeout (COST_NOTES).
+  timeout_s: 3600
+  space:
+    learning_rate: {low: 0.01, high: 0.2, log: true}
+    num_leaves: {low: 15, high: 255, log: true}
+    min_data_in_leaf: {low: 20, high: 2000, log: true}
+    feature_fraction: {low: 0.5, high: 1.0}
+    bagging_fraction: {low: 0.5, high: 0.95}
+    lambda_l2: {low: 0.001, high: 10.0, log: true}
+    scale_pos_weight: {low: 1.0, high: 100.0, log: true}
+
+# Finalists: the best Optuna params retrained per seed (PLAN.md §4 "Seeds").
+seeds: [0, 1, 2, 3, 4]
+
+# M2: LightGBM on transaction + graph features (PLAN.md §6 M2). Excluded from lgbm_key, so the M1
+# lgbm_tx outputs stay valid. Everything not overridden here is taken from the M1 settings above.
+graph:
+  optuna: {n_trials: 15, n_startup_trials: 5, timeout_s: 2700}   # merged over `optuna`
+  gate:
+    psi_max: 0.25
+    psi_bins: 10
+    psi_eps: 1.0e-4
+    psi_train_days: [4, 6]        # warm train days: every window <= 3 d is complete
+    warmup_days: [1, 3]           # diagnostic only: PSI(days 1-3 vs psi_train_days)
+    out_of_range_max: 0.01        # share of val_early non-NaN values outside the warm-train range
+    min_train_nonzero: 100        # rows (days 1-6); below this a feature cannot be learned
+    max_drop_share: 0.25          # stop and ask if more engine features would be dropped
+  ablation:
+    seeds: [0, 1, 2]              # >= 3: the pooled seed std of the decision rule
+    margin_std: 2.0               # pre-registered decision rule (M2 spec §8.3)
+    # Optional `variants:` (default: all ten); only no_gate may be left out (spec §10 cost cut 3).
+  shap:
+    negatives: 100000
+    seed: 0

@@ -1,0 +1,48 @@
+# Rule-based transaction monitoring baseline (the "incumbent"), PLAN.md §6 M1.
+# Every scenario obeys the as-of rule: windows cover minutes [m - W, m - 1].
+# Each scenario yields a numeric severity per transaction; it fires when severity >= threshold.
+# Thresholds are grid-searched on `tune_split` to maximise recall subject to a union alert
+# rate <= alert_rate (greedy, deterministic).
+
+alert_rate: 0.005                  # analyst-capacity assumption: 0.5% of transactions
+sensitivity_alert_rates: [0.001, 0.01]
+tune_split: val_early
+
+# Train-period degree quantile above which an account counts as a hub and is excluded as a
+# round-trip intermediate and, where a scenario sets exclude_hub_senders, segmented out of that
+# sender-keyed scenario (the EDA reports the distribution).
+hub_degree_quantile: 0.999
+
+round_unit: 100                    # "round" = whole multiple of this, in the paid currency
+high_risk_formats: [Cash, Bitcoin]
+structuring_threshold_usd: 10000   # T; the band is [band_low * T, T)
+structuring_band_low: 0.9
+
+scenarios:
+  fan_in_velocity:                 # distinct senders into the receiver in the window
+    window_minutes: 1440
+    grid: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 300, 500, 1000]
+  fan_out_velocity:                # distinct receivers from the sender in the window
+    window_minutes: 1440
+    # Segment out hub senders (train degree > hub cap): a few hubs send thousands of payments a
+    # day, so without this even ">= 1000 receivers" exceeds the whole alert budget.
+    exclude_hub_senders: true
+    grid: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 300, 500, 1000]
+  rapid_pass_through:              # 1 - |amount / sender's windowed inflow - 1|, 0 if no inflow;
+                                   # inflow = non-self-loop edges into the sender; self-loop rows get 0
+    window_minutes: 720
+    grid: [0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.98, 0.99, 0.995, 0.999]
+  round_trip:                      # number of earlier 2-3-hop paths v -> ... -> u closing on u -> v
+    window_minutes: 2880
+    hop_window_minutes: 1440       # max gap between consecutive hops of the earlier path
+    grid: [1, 2, 3, 5, 10, 20]
+  structuring:                     # in-band flag * (1 + sender's in-band count in the window)
+    window_minutes: 1440
+    grid: [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20]
+  round_amount_burst:              # round flag * (1 + sender's round count in the window)
+    window_minutes: 1440
+    grid: [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30, 50, 100]
+  high_risk_format_burst:          # high-risk flag * (1 + sender's high-risk count in the window)
+    window_minutes: 1440
+    exclude_hub_senders: true      # same reason as fan_out_velocity
+    grid: [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30, 50, 100]

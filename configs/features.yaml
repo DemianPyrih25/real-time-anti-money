@@ -1,0 +1,25 @@
+# Causal feature engine (PLAN.md §6 M2). Minutes; a window W covers minutes [m - W, m - 1].
+# Windows are chosen by AML meaning and the M1 rule windows, not tuned on data (see README).
+windows:
+  short: 1440          # 1 d: daily monitoring window (= the M1 fan/burst rule windows; slots shared)
+  long: 4320           # 3 d: multi-day layering; >= the M1 round-trip window (2 d)
+  sg: 1440             # scatter-gather / gather-scatter
+# Cycles share one search with the round-trip rule: window and hop come from
+# rules.yaml scenarios.round_trip (2880 / 1440).
+caps:
+  count: 100           # cyc*/sg* counts are capped here (the M1 round-trip cap)
+  port: 16383          # port features = log1p(min(port, cap))
+  gap: 4320            # gap features = min(minutes since last activity, cap); 0 = no history
+budgets:
+  rule_visits: 2000000 # D1/D2 walk steps per (account, minute); > 1,084^2 so never hit on HI-Small
+  feat_visits: 50000   # D3 (cyc4) steps per (account, minute) and SG work per target
+ring:
+  compact_min_rows: 262144
+replay:
+  batch_rows: 65536    # Parquet read batch
+  row_group_rows: 65536
+snapshots:
+  boundaries: [val_early, test]   # at the first minute of the first day of these splits
+bench:
+  last_day: 3          # dry-run replays days 1..3, then advances to the start of day 4 (ring peak)
+memory_target_mb: 1000

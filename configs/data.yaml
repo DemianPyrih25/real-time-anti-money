@@ -1,0 +1,40 @@
+# Data, split and evaluation-protocol config (PLAN.md §4).
+# Day indices are 1-based simulated days counted from the first timestamp's day (day 1).
+
+dataset:
+  name: hi_small
+  kaggle_dataset: ealtman2019/ibm-transactions-for-anti-money-laundering-aml
+  transactions_file: HI-Small_Trans.csv
+  patterns_file: HI-Small_Patterns.txt
+  # Anonymous public download (verified); the `kaggle` Modal Secret is only a fallback.
+  public_url_template: "https://www.kaggle.com/api/v1/datasets/download/{dataset}/{file}"
+
+# Asserted by prepare_data on the real data (PLAN.md §4). The synthetic fixture overrides these.
+expected:
+  rows: 5078345
+  accounts: 515088
+  positives: 5177
+  pattern_attempts: 370
+  pattern_transactions: 3209
+
+# IBM Multi-GNN day-boundary split, inclusive day ranges.
+split:
+  train: [1, 6]
+  val_early: [7, 7]   # early stopping, HPO, model choice
+  val_late: [8, 8]    # thresholds, calibration
+  test: [9, 18]
+
+# Test views; `primary` is the headline.
+test_views:
+  primary: [9, 10]
+  tail: [11, 18]
+  full: [9, 18]
+
+fx:
+  base_currency: US Dollar
+  fit_split: train          # FX rates are inferred from train-period cross-currency rows only
+
+evaluation:
+  bootstrap_replicates: 2000
+  bootstrap_seed: 0
+  ci_level: 0.95

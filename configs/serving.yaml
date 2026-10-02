@@ -1,0 +1,3 @@
+# Streaming demo (PLAN.md §6 M5). M2 creates it with only what the serving bundle needs.
+replay:
+  max_events: 100000   # the first N test events (rank order) in the bundle's replay slice

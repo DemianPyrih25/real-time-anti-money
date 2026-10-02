@@ -1,0 +1,520 @@
+{
+  "csv": {
+    "account_strings_at_several_banks": 8,
+    "all_digit_account_ids": 35135,
+    "bank_codes_colliding_as_int": 58,
+    "distinct_account_strings": 515080,
+    "distinct_banks": 30528,
+    "first_out_of_order_row_id": 2,
+    "float_looking_account_ids": 19779,
+    "header": {
+      "checked": true,
+      "columns": [
+        "Timestamp",
+        "From Bank",
+        "Account",
+        "To Bank",
+        "Account",
+        "Amount Received",
+        "Receiving Currency",
+        "Amount Paid",
+        "Payment Currency",
+        "Payment Format",
+        "Is Laundering"
+      ],
+      "duplicate_names": [
+        "Account"
+      ],
+      "matches_expected": true
+    },
+    "inversions": 2418736,
+    "sorted_by_time": false,
+    "zero_padded_banks": 30528
+  },
+  "hubs": {
+    "max_in_degree": 1084,
+    "max_out_degree": 168672,
+    "top_in_degree": [
+      {
+        "account_id": 515073,
+        "degree": 1084,
+        "distinct_counterparties": 545
+      },
+      {
+        "account_id": 515074,
+        "degree": 653,
+        "distinct_counterparties": 328
+      },
+      {
+        "account_id": 90047,
+        "degree": 159,
+        "distinct_counterparties": 80
+      },
+      {
+        "account_id": 515084,
+        "degree": 150,
+        "distinct_counterparties": 75
+      },
+      {
+        "account_id": 339682,
+        "degree": 144,
+        "distinct_counterparties": 81
+      }
+    ],
+    "top_out_degree": [
+      {
+        "account_id": 515073,
+        "degree": 168672,
+        "distinct_counterparties": 14230
+      },
+      {
+        "account_id": 515074,
+        "degree": 103018,
+        "distinct_counterparties": 8846
+      },
+      {
+        "account_id": 515084,
+        "degree": 20497,
+        "distinct_counterparties": 1776
+      },
+      {
+        "account_id": 515075,
+        "degree": 18663,
+        "distinct_counterparties": 1575
+      },
+      {
+        "account_id": 515077,
+        "degree": 17264,
+        "distinct_counterparties": 1421
+      }
+    ]
+  },
+  "overview": {
+    "accounts": 515088,
+    "first_day": 1,
+    "last_day": 18,
+    "n_days": 18,
+    "positive_pct": 0.10194266045335636,
+    "positives": 5177,
+    "rows": 5078345
+  },
+  "patterns": {
+    "attempts": 370,
+    "other_positives": 1968,
+    "pattern_transactions": 3209,
+    "share_of_positives_covered": 0.6198570600734016,
+    "typologies": [
+      {
+        "attempts": 49,
+        "transactions": 263,
+        "typology": "BIPARTITE"
+      },
+      {
+        "attempts": 54,
+        "transactions": 287,
+        "typology": "CYCLE"
+      },
+      {
+        "attempts": 40,
+        "transactions": 318,
+        "typology": "FAN-IN"
+      },
+      {
+        "attempts": 48,
+        "transactions": 342,
+        "typology": "FAN-OUT"
+      },
+      {
+        "attempts": 51,
+        "transactions": 716,
+        "typology": "GATHER-SCATTER"
+      },
+      {
+        "attempts": 0,
+        "transactions": 1968,
+        "typology": "OTHER"
+      },
+      {
+        "attempts": 41,
+        "transactions": 191,
+        "typology": "RANDOM"
+      },
+      {
+        "attempts": 44,
+        "transactions": 626,
+        "typology": "SCATTER-GATHER"
+      },
+      {
+        "attempts": 43,
+        "transactions": 466,
+        "typology": "STACK"
+      }
+    ]
+  },
+  "payment": {
+    "cross_currency_positives": 0,
+    "cross_currency_rows": 72170,
+    "formats": [
+      {
+        "payment_format": "ACH",
+        "positives": 4483,
+        "prevalence": 0.007461754968816422,
+        "rows": 600797,
+        "share_of_positives": 0.8659455282982422
+      },
+      {
+        "payment_format": "Cheque",
+        "positives": 324,
+        "prevalence": 0.00017378888190991835,
+        "rows": 1864331,
+        "share_of_positives": 0.06258450840254974
+      },
+      {
+        "payment_format": "Credit Card",
+        "positives": 206,
+        "prevalence": 0.0001556686042118181,
+        "rows": 1323324,
+        "share_of_positives": 0.0397913849719915
+      },
+      {
+        "payment_format": "Cash",
+        "positives": 108,
+        "prevalence": 0.0002200081077061914,
+        "rows": 490891,
+        "share_of_positives": 0.020861502800849915
+      },
+      {
+        "payment_format": "Bitcoin",
+        "positives": 56,
+        "prevalence": 0.0003833227235079505,
+        "rows": 146091,
+        "share_of_positives": 0.010817075526366621
+      },
+      {
+        "payment_format": "Reinvestment",
+        "positives": 0,
+        "prevalence": 0.0,
+        "rows": 481056,
+        "share_of_positives": 0.0
+      },
+      {
+        "payment_format": "Wire",
+        "positives": 0,
+        "prevalence": 0.0,
+        "rows": 171855,
+        "share_of_positives": 0.0
+      }
+    ],
+    "reinvestment_self_loop_share": 1.0,
+    "self_loop_positives": 11,
+    "self_loop_rows": 591212,
+    "wire_positives": 0
+  },
+  "per_day": [
+    {
+      "day": 1,
+      "mostly_laundering": false,
+      "positive_share": 0.0002888097004182359,
+      "positives": 322,
+      "rows": 1114921,
+      "sparse": false
+    },
+    {
+      "day": 2,
+      "mostly_laundering": false,
+      "positive_share": 0.0005407920217271148,
+      "positives": 408,
+      "rows": 754449,
+      "sparse": false
+    },
+    {
+      "day": 3,
+      "mostly_laundering": false,
+      "positive_share": 0.0018854095340964981,
+      "positives": 391,
+      "rows": 207382,
+      "sparse": false
+    },
+    {
+      "day": 4,
+      "mostly_laundering": false,
+      "positive_share": 0.0019621076989827894,
+      "positives": 407,
+      "rows": 207430,
+      "sparse": false
+    },
+    {
+      "day": 5,
+      "mostly_laundering": false,
+      "positive_share": 0.0009758624261887496,
+      "positives": 471,
+      "rows": 482650,
+      "sparse": false
+    },
+    {
+      "day": 6,
+      "mostly_laundering": false,
+      "positive_share": 0.0011014563700893403,
+      "positives": 531,
+      "rows": 482089,
+      "sparse": false
+    },
+    {
+      "day": 7,
+      "mostly_laundering": false,
+      "positive_share": 0.001029516251649401,
+      "positives": 497,
+      "rows": 482751,
+      "sparse": false
+    },
+    {
+      "day": 8,
+      "mostly_laundering": false,
+      "positive_share": 0.0011164667452405169,
+      "positives": 539,
+      "rows": 482773,
+      "sparse": false
+    },
+    {
+      "day": 9,
+      "mostly_laundering": false,
+      "positive_share": 0.0007853719133279447,
+      "positives": 514,
+      "rows": 654467,
+      "sparse": false
+    },
+    {
+      "day": 10,
+      "mostly_laundering": false,
+      "positive_share": 0.002121684867394696,
+      "positives": 442,
+      "rows": 208325,
+      "sparse": false
+    },
+    {
+      "day": 11,
+      "mostly_laundering": true,
+      "positive_share": 0.5858585858585859,
+      "positives": 232,
+      "rows": 396,
+      "sparse": true
+    },
+    {
+      "day": 12,
+      "mostly_laundering": true,
+      "positive_share": 0.604982206405694,
+      "positives": 170,
+      "rows": 281,
+      "sparse": true
+    },
+    {
+      "day": 13,
+      "mostly_laundering": true,
+      "positive_share": 0.5760869565217391,
+      "positives": 106,
+      "rows": 184,
+      "sparse": true
+    },
+    {
+      "day": 14,
+      "mostly_laundering": true,
+      "positive_share": 0.5785123966942148,
+      "positives": 70,
+      "rows": 121,
+      "sparse": true
+    },
+    {
+      "day": 15,
+      "mostly_laundering": true,
+      "positive_share": 0.6086956521739131,
+      "positives": 28,
+      "rows": 46,
+      "sparse": true
+    },
+    {
+      "day": 16,
+      "mostly_laundering": true,
+      "positive_share": 0.5652173913043478,
+      "positives": 26,
+      "rows": 46,
+      "sparse": true
+    },
+    {
+      "day": 17,
+      "mostly_laundering": true,
+      "positive_share": 0.6521739130434783,
+      "positives": 15,
+      "rows": 23,
+      "sparse": true
+    },
+    {
+      "day": 18,
+      "mostly_laundering": true,
+      "positive_share": 0.7272727272727273,
+      "positives": 8,
+      "rows": 11,
+      "sparse": true
+    }
+  ],
+  "repeat_accounts": {
+    "test": {
+      "positives": 1611,
+      "share_touching": 0.2538795779019243,
+      "touching": 409
+    },
+    "train_launderer_accounts": 3471,
+    "view_full": {
+      "positives": 1611,
+      "share_touching": 0.2538795779019243,
+      "touching": 409
+    },
+    "view_primary": {
+      "positives": 956,
+      "share_touching": 0.30962343096234307,
+      "touching": 296
+    },
+    "view_tail": {
+      "positives": 655,
+      "share_touching": 0.17251908396946564,
+      "touching": 113
+    }
+  },
+  "rows_per_minute": {
+    "max": 11193,
+    "mean": 338.1505526701292,
+    "mean_over_non_tail_span": 352.5859027777778,
+    "occupied_minutes": 15018,
+    "p50": 323,
+    "p99": 809
+  },
+  "splits": {
+    "test": {
+      "days": [
+        9,
+        18
+      ],
+      "positives": 1611,
+      "prevalence": 0.0018647991665702048,
+      "rows": 863900,
+      "share_of_rows": 0.1701144762713049
+    },
+    "test_full": {
+      "days": [
+        9,
+        18
+      ],
+      "positives": 1611,
+      "prevalence": 0.0018647991665702048,
+      "rows": 863900,
+      "share_of_rows": 0.1701144762713049
+    },
+    "test_primary": {
+      "days": [
+        9,
+        10
+      ],
+      "positives": 956,
+      "prevalence": 0.0011080306725143488,
+      "rows": 862792,
+      "share_of_rows": 0.16989629495436012
+    },
+    "test_tail": {
+      "days": [
+        11,
+        18
+      ],
+      "positives": 655,
+      "prevalence": 0.5911552346570397,
+      "rows": 1108,
+      "share_of_rows": 0.00021818131694479204
+    },
+    "train": {
+      "days": [
+        1,
+        6
+      ],
+      "positives": 2530,
+      "prevalence": 0.0007787200735259491,
+      "rows": 3248921,
+      "share_of_rows": 0.6397598036368147
+    },
+    "val_early": {
+      "days": [
+        7,
+        7
+      ],
+      "positives": 497,
+      "prevalence": 0.001029516251649401,
+      "rows": 482751,
+      "share_of_rows": 0.09506069398593439
+    },
+    "val_late": {
+      "days": [
+        8,
+        8
+      ],
+      "positives": 539,
+      "prevalence": 0.0011164667452405169,
+      "rows": 482773,
+      "share_of_rows": 0.09506502610594593
+    }
+  },
+  "tail_days": {
+    "days": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "matches_config_tail_view": true,
+    "positive_share": 0.5911552346570397,
+    "positives": 655,
+    "rows": 1108,
+    "rule": "rows < 0.01 x busiest day, or positive share >= 0.5",
+    "share_of_test_positives": 0.4065797641216636,
+    "share_of_test_rows": 0.0012825558513716866
+  },
+  "ties": {
+    "share_rows_in_shared_minute": 0.9999554973126087,
+    "share_rows_in_shared_src_minute": 0.14229832750630372
+  },
+  "train_degree": {
+    "accounts": 512907,
+    "definition": "edge (transaction) counts over accounts active in train; a self-loop counts once as out and once as in",
+    "in_deg": {
+      "max": 545,
+      "q0.5": 2,
+      "q0.9": 18,
+      "q0.99": 30,
+      "q0.999": 41,
+      "q0.9999": 69
+    },
+    "out_deg": {
+      "max": 101368,
+      "q0.5": 2,
+      "q0.9": 17,
+      "q0.99": 55,
+      "q0.999": 95,
+      "q0.9999": 138
+    },
+    "quantiles": [
+      0.5,
+      0.9,
+      0.99,
+      0.999,
+      0.9999
+    ],
+    "total_deg": {
+      "max": 101913,
+      "q0.5": 5,
+      "q0.9": 32,
+      "q0.99": 72,
+      "q0.999": 115,
+      "q0.9999": 157
+    }
+  }
+}
