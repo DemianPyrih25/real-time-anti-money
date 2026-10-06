@@ -1,0 +1,919 @@
+{
+  "pack_format": 1,
+  "id": 3162468,
+  "case_key": "175393-d9",
+  "rank": 4365696,
+  "who": {
+    "subject": {
+      "account": 175393,
+      "bank": "0121"
+    },
+    "counterparty": {
+      "account": 164775,
+      "bank": "0118"
+    }
+  },
+  "what": {
+    "amount_usd": 9827.703458221218,
+    "amount_paid": 36842.42,
+    "payment_format": "ACH",
+    "payment_currency": "Saudi Riyal",
+    "receiving_currency": "Saudi Riyal"
+  },
+  "when": {
+    "day": 9,
+    "time": "05:08",
+    "minute": 11828
+  },
+  "where": {
+    "from_bank": "0121",
+    "to_bank": "0118",
+    "cross_bank": true
+  },
+  "why": {
+    "score": 0.6632301442169182,
+    "calibrated": 0.88,
+    "threshold": 0.022294557644632167,
+    "rate_tag": "0p005",
+    "rules_fired": [],
+    "drivers": [
+      {
+        "feature": "payment_format",
+        "value": 0.0,
+        "display": "ACH",
+        "contribution": 4.4126474274762035
+      },
+      {
+        "feature": "pair_is_new",
+        "value": 1.0,
+        "display": "1",
+        "contribution": 1.4315293962748894
+      },
+      {
+        "feature": "log_amount_usd",
+        "value": 9.193062782287598,
+        "display": "9.193",
+        "contribution": 1.0271210971254887
+      },
+      {
+        "feature": "out_port",
+        "value": 2.890371799468994,
+        "display": "2.89",
+        "contribution": 0.7397980688538988
+      },
+      {
+        "feature": "u_out_fmt_ach_1d",
+        "value": 5.0,
+        "display": "5",
+        "contribution": 0.49001497933441324
+      }
+    ],
+    "base_value": -10.743759549895113,
+    "others_contribution": 3.320370859766724,
+    "log_odds": 0.6777222789365045,
+    "typology": {
+      "label": "FAN-OUT",
+      "model": "tree",
+      "evidence": [
+        "u_out_newcp_1d = 4 > 0.5",
+        "the sender was paid by 4 distinct counterparties in the previous 3 days (u_in_uniq_3d = 4 > 2.5)",
+        "the sender was paid by 4 distinct counterparties in the previous 3 days (u_in_uniq_3d = 4 > 3.5)",
+        "the sender paid 9 distinct counterparties in the previous day (u_out_uniq_1d = 9 > 3.5)",
+        "50% of 10 validation cases at this leaf were FAN-OUT"
+      ],
+      "features": {
+        "log_amount_usd": 9.193062782287598,
+        "payment_currency": 8.0,
+        "receiving_currency": 8.0,
+        "cross_currency": 0.0,
+        "payment_format": 0.0,
+        "self_loop": 0.0,
+        "same_bank": 0.0,
+        "round_amount": 0.0,
+        "hour_of_day": 5.0,
+        "u_out_cnt_1d": 14.0,
+        "u_out_cnt_3d": 43.0,
+        "u_out_uniq_1d": 9.0,
+        "u_out_uniq_3d": 15.0,
+        "u_in_cnt_1d": 6.0,
+        "u_in_cnt_3d": 11.0,
+        "u_in_uniq_1d": 3.0,
+        "u_in_uniq_3d": 4.0,
+        "v_in_cnt_1d": 2.0,
+        "v_in_uniq_1d": 1.0,
+        "v_in_uniq_3d": 1.0,
+        "v_out_cnt_1d": 6.0,
+        "v_out_cnt_3d": 10.0,
+        "v_out_uniq_1d": 2.0,
+        "v_out_uniq_3d": 2.0,
+        "u_out_sum_1d": 15.099940299987793,
+        "u_out_sum_3d": 20.38217544555664,
+        "u_in_sum_1d": 10.479103088378906,
+        "u_in_sum_3d": 10.863249778747559,
+        "v_in_sum_1d": 7.023963928222656,
+        "v_in_sum_3d": 8.12198257446289,
+        "v_out_sum_1d": 9.782548904418945,
+        "v_out_sum_3d": 10.19766902923584,
+        "u_out_mean_1d": 7.570824146270752,
+        "u_out_mean_3d": 8.867431640625,
+        "v_in_mean_1d": 6.116433143615723,
+        "v_in_mean_3d": 6.116433143615723,
+        "u_out_std_1d": 3.8126380443573,
+        "u_out_std_3d": 4.234511375427246,
+        "v_in_std_1d": 0.6799473166465759,
+        "v_in_std_3d": 0.6799473166465759,
+        "u_out_max_1d": 14.986265182495117,
+        "v_in_max_1d": 6.796380519866943,
+        "u_amt_dev_1d": 1.6222381591796875,
+        "v_amt_dev_1d": 3.076629161834717,
+        "pair_cnt_1d": 0.0,
+        "u_inflow_12h": 0.0,
+        "pt_ratio_12h": null,
+        "u_bal_3d": 0.9998531341552734,
+        "v_bal_3d": 0.7770864367485046,
+        "pair_is_new": 1.0,
+        "out_port": 2.890371799468994,
+        "in_port": 1.0986123085021973,
+        "u_out_gap": 1.0,
+        "u_in_gap": 827.0,
+        "v_in_gap": 1340.0,
+        "v_out_gap": 156.0,
+        "pair_gap": 0.0,
+        "rev_pair_gap": 0.0,
+        "cyc2_2d": 0.0,
+        "sg_mids_1d": 0.0,
+        "sg_srcs_1d": 0.0,
+        "gs_u_1d": 3.0,
+        "gs_v_1d": 1.0,
+        "in_band": 1.0,
+        "u_out_inband_1d": 0.0,
+        "u_out_round_1d": 0.0,
+        "u_out_newcp_1d": 4.0,
+        "u_out_fmt_ach_1d": 5.0,
+        "u_out_fmt_bitcoin_1d": 0.0,
+        "u_out_fmt_cash_1d": 1.0,
+        "u_out_fmt_cheque_1d": 4.0,
+        "u_out_fmt_credit_card_1d": 3.0,
+        "u_out_fmt_reinvestment_1d": 0.0,
+        "u_out_fmt_wire_1d": 1.0,
+        "v_in_same_fmt_1d": 0.0,
+        "cyc3_2d": 0.0,
+        "cyc4_2d": 0.0,
+        "g_src_out_deg": 5,
+        "g_src_in_deg": 2,
+        "g_dst_in_deg": 1,
+        "g_dst_out_deg": 2,
+        "g_common_sinks": 0,
+        "g_cycle_back": 0,
+        "g_n_nodes": 33,
+        "g_n_edges": 74
+      }
+    }
+  },
+  "how": {
+    "subgraph": {
+      "nodes": [
+        {
+          "id": 175393,
+          "role": "subject"
+        },
+        {
+          "id": 164775,
+          "role": "counterparty"
+        },
+        {
+          "id": 101698,
+          "role": "other"
+        },
+        {
+          "id": 102425,
+          "role": "other"
+        },
+        {
+          "id": 102436,
+          "role": "other"
+        },
+        {
+          "id": 102509,
+          "role": "other"
+        },
+        {
+          "id": 103293,
+          "role": "other"
+        },
+        {
+          "id": 103710,
+          "role": "other"
+        },
+        {
+          "id": 103754,
+          "role": "other"
+        },
+        {
+          "id": 103827,
+          "role": "other"
+        },
+        {
+          "id": 164854,
+          "role": "other"
+        },
+        {
+          "id": 164857,
+          "role": "other"
+        },
+        {
+          "id": 165065,
+          "role": "other"
+        },
+        {
+          "id": 167053,
+          "role": "other"
+        },
+        {
+          "id": 167667,
+          "role": "other"
+        },
+        {
+          "id": 167879,
+          "role": "other"
+        },
+        {
+          "id": 175396,
+          "role": "other"
+        },
+        {
+          "id": 175502,
+          "role": "other"
+        },
+        {
+          "id": 175731,
+          "role": "other"
+        },
+        {
+          "id": 230811,
+          "role": "other"
+        },
+        {
+          "id": 310425,
+          "role": "other"
+        },
+        {
+          "id": 310625,
+          "role": "other"
+        },
+        {
+          "id": 313234,
+          "role": "other"
+        },
+        {
+          "id": 313239,
+          "role": "other"
+        },
+        {
+          "id": 324786,
+          "role": "other"
+        },
+        {
+          "id": 357009,
+          "role": "other"
+        },
+        {
+          "id": 357123,
+          "role": "other"
+        },
+        {
+          "id": 357864,
+          "role": "other"
+        },
+        {
+          "id": 484103,
+          "role": "other"
+        },
+        {
+          "id": 484981,
+          "role": "other"
+        },
+        {
+          "id": 485482,
+          "role": "other"
+        },
+        {
+          "id": 488022,
+          "role": "other"
+        },
+        {
+          "id": 515086,
+          "role": "other"
+        }
+      ],
+      "edges": [
+        {
+          "src": 175393,
+          "dst": 164775,
+          "minute": 11828,
+          "amount_usd": 9827.703458221218,
+          "kind": "alert",
+          "rank": 4365696
+        },
+        {
+          "src": 167667,
+          "dst": 164775,
+          "minute": 7672,
+          "amount_usd": 893.6,
+          "kind": "history",
+          "rank": 2935325
+        },
+        {
+          "src": 167667,
+          "dst": 164775,
+          "minute": 7676,
+          "amount_usd": 228.63,
+          "kind": "history",
+          "rank": 2936648
+        },
+        {
+          "src": 175393,
+          "dst": 175393,
+          "minute": 8677,
+          "amount_usd": 0.78,
+          "kind": "history",
+          "rank": 3275741
+        },
+        {
+          "src": 175393,
+          "dst": 175393,
+          "minute": 8696,
+          "amount_usd": 1.12,
+          "kind": "history",
+          "rank": 3281962
+        },
+        {
+          "src": 103827,
+          "dst": 103710,
+          "minute": 8754,
+          "amount_usd": 142.03,
+          "kind": "history",
+          "rank": 3301182
+        },
+        {
+          "src": 102425,
+          "dst": 102509,
+          "minute": 8995,
+          "amount_usd": 28721.19,
+          "kind": "history",
+          "rank": 3379086
+        },
+        {
+          "src": 164775,
+          "dst": 175502,
+          "minute": 9158,
+          "amount_usd": 5914.5,
+          "kind": "history",
+          "rank": 3432560
+        },
+        {
+          "src": 167667,
+          "dst": 164775,
+          "minute": 9162,
+          "amount_usd": 228.63,
+          "kind": "history",
+          "rank": 3433879
+        },
+        {
+          "src": 167667,
+          "dst": 164775,
+          "minute": 9167,
+          "amount_usd": 893.6,
+          "kind": "history",
+          "rank": 3435533
+        },
+        {
+          "src": 164775,
+          "dst": 175502,
+          "minute": 9179,
+          "amount_usd": 2687.47,
+          "kind": "history",
+          "rank": 3439470
+        },
+        {
+          "src": 164775,
+          "dst": 164854,
+          "minute": 9311,
+          "amount_usd": 418.08,
+          "kind": "history",
+          "rank": 3482031
+        },
+        {
+          "src": 164775,
+          "dst": 164854,
+          "minute": 9311,
+          "amount_usd": 98.74,
+          "kind": "history",
+          "rank": 3482032
+        },
+        {
+          "src": 175396,
+          "dst": 167667,
+          "minute": 9346,
+          "amount_usd": 760130.06,
+          "kind": "history",
+          "rank": 3493642
+        },
+        {
+          "src": 175396,
+          "dst": 167667,
+          "minute": 9354,
+          "amount_usd": 134137.87,
+          "kind": "history",
+          "rank": 3496253
+        },
+        {
+          "src": 324786,
+          "dst": 310625,
+          "minute": 9722,
+          "amount_usd": 6275.57,
+          "kind": "history",
+          "rank": 3616116
+        },
+        {
+          "src": 101698,
+          "dst": 310625,
+          "minute": 9750,
+          "amount_usd": 1121.66,
+          "kind": "history",
+          "rank": 3625476
+        },
+        {
+          "src": 357123,
+          "dst": 310625,
+          "minute": 9782,
+          "amount_usd": 9317.44,
+          "kind": "history",
+          "rank": 3635758
+        },
+        {
+          "src": 515086,
+          "dst": 175393,
+          "minute": 10024,
+          "amount_usd": 3171.9,
+          "kind": "history",
+          "rank": 3713685
+        },
+        {
+          "src": 515086,
+          "dst": 175393,
+          "minute": 10028,
+          "amount_usd": 1201.09,
+          "kind": "history",
+          "rank": 3714995
+        },
+        {
+          "src": 103827,
+          "dst": 103710,
+          "minute": 10302,
+          "amount_usd": 85.79,
+          "kind": "history",
+          "rank": 3818240
+        },
+        {
+          "src": 103827,
+          "dst": 103710,
+          "minute": 10309,
+          "amount_usd": 142.03,
+          "kind": "history",
+          "rank": 3820608
+        },
+        {
+          "src": 167667,
+          "dst": 164775,
+          "minute": 10483,
+          "amount_usd": 893.6,
+          "kind": "history",
+          "rank": 3876849
+        },
+        {
+          "src": 167667,
+          "dst": 164775,
+          "minute": 10488,
+          "amount_usd": 228.63,
+          "kind": "history",
+          "rank": 3878467
+        },
+        {
+          "src": 175396,
+          "dst": 167667,
+          "minute": 10502,
+          "amount_usd": 134137.87,
+          "kind": "history",
+          "rank": 3883046
+        },
+        {
+          "src": 175396,
+          "dst": 167667,
+          "minute": 10515,
+          "amount_usd": 760130.06,
+          "kind": "history",
+          "rank": 3887335
+        },
+        {
+          "src": 515086,
+          "dst": 175393,
+          "minute": 10657,
+          "amount_usd": 3171.9,
+          "kind": "history",
+          "rank": 3933700
+        },
+        {
+          "src": 310625,
+          "dst": 175393,
+          "minute": 10661,
+          "amount_usd": 13651.93,
+          "kind": "history",
+          "rank": 3934652
+        },
+        {
+          "src": 515086,
+          "dst": 175393,
+          "minute": 10664,
+          "amount_usd": 1201.09,
+          "kind": "history",
+          "rank": 3936006
+        },
+        {
+          "src": 175502,
+          "dst": 167879,
+          "minute": 10797,
+          "amount_usd": 1168.46,
+          "kind": "history",
+          "rank": 3979214
+        },
+        {
+          "src": 102425,
+          "dst": 102509,
+          "minute": 10828,
+          "amount_usd": 28721.19,
+          "kind": "history",
+          "rank": 3989325
+        },
+        {
+          "src": 313239,
+          "dst": 230811,
+          "minute": 10933,
+          "amount_usd": 15902.19,
+          "kind": "history",
+          "rank": 4023799
+        },
+        {
+          "src": 313239,
+          "dst": 230811,
+          "minute": 10944,
+          "amount_usd": 4397.92,
+          "kind": "history",
+          "rank": 4027276
+        },
+        {
+          "src": 175393,
+          "dst": 175393,
+          "minute": 10971,
+          "amount_usd": 17536.69,
+          "kind": "history",
+          "rank": 4035698
+        },
+        {
+          "src": 175502,
+          "dst": 103754,
+          "minute": 10987,
+          "amount_usd": 1294.81,
+          "kind": "history",
+          "rank": 4041200
+        },
+        {
+          "src": 175393,
+          "dst": 175393,
+          "minute": 10994,
+          "amount_usd": 1.12,
+          "kind": "history",
+          "rank": 4043636
+        },
+        {
+          "src": 175393,
+          "dst": 102425,
+          "minute": 10996,
+          "amount_usd": 316.18,
+          "kind": "history",
+          "rank": 4044313
+        },
+        {
+          "src": 175393,
+          "dst": 102425,
+          "minute": 10998,
+          "amount_usd": 1265.23,
+          "kind": "history",
+          "rank": 4044954
+        },
+        {
+          "src": 175393,
+          "dst": 175393,
+          "minute": 11001,
+          "amount_usd": 0.78,
+          "kind": "history",
+          "rank": 4045997
+        },
+        {
+          "src": 164775,
+          "dst": 175502,
+          "minute": 11044,
+          "amount_usd": 2687.47,
+          "kind": "history",
+          "rank": 4060208
+        },
+        {
+          "src": 175393,
+          "dst": 313239,
+          "minute": 11059,
+          "amount_usd": 13658.56,
+          "kind": "history",
+          "rank": 4064736
+        },
+        {
+          "src": 164775,
+          "dst": 175502,
+          "minute": 11062,
+          "amount_usd": 5914.5,
+          "kind": "history",
+          "rank": 4066079
+        },
+        {
+          "src": 103827,
+          "dst": 165065,
+          "minute": 11094,
+          "amount_usd": 4647.41,
+          "kind": "history",
+          "rank": 4076383
+        },
+        {
+          "src": 164854,
+          "dst": 103293,
+          "minute": 11173,
+          "amount_usd": 570.77,
+          "kind": "history",
+          "rank": 4102380
+        },
+        {
+          "src": 164854,
+          "dst": 103293,
+          "minute": 11179,
+          "amount_usd": 174.74,
+          "kind": "history",
+          "rank": 4104327
+        },
+        {
+          "src": 164854,
+          "dst": 103293,
+          "minute": 11180,
+          "amount_usd": 141.93,
+          "kind": "history",
+          "rank": 4104671
+        },
+        {
+          "src": 164854,
+          "dst": 103293,
+          "minute": 11181,
+          "amount_usd": 295.07,
+          "kind": "history",
+          "rank": 4104991
+        },
+        {
+          "src": 164775,
+          "dst": 164854,
+          "minute": 11194,
+          "amount_usd": 418.08,
+          "kind": "history",
+          "rank": 4109190
+        },
+        {
+          "src": 164775,
+          "dst": 164854,
+          "minute": 11203,
+          "amount_usd": 98.74,
+          "kind": "history",
+          "rank": 4112071
+        },
+        {
+          "src": 175393,
+          "dst": 167053,
+          "minute": 11208,
+          "amount_usd": 859.2,
+          "kind": "history",
+          "rank": 4113375
+        },
+        {
+          "src": 101698,
+          "dst": 310625,
+          "minute": 11300,
+          "amount_usd": 1121.66,
+          "kind": "history",
+          "rank": 4143746
+        },
+        {
+          "src": 313239,
+          "dst": 357009,
+          "minute": 11310,
+          "amount_usd": 150.34,
+          "kind": "history",
+          "rank": 4146963
+        },
+        {
+          "src": 175393,
+          "dst": 103827,
+          "minute": 11313,
+          "amount_usd": 896.34,
+          "kind": "history",
+          "rank": 4147892
+        },
+        {
+          "src": 313239,
+          "dst": 357009,
+          "minute": 11320,
+          "amount_usd": 191.7,
+          "kind": "history",
+          "rank": 4150158
+        },
+        {
+          "src": 175393,
+          "dst": 103827,
+          "minute": 11326,
+          "amount_usd": 204.27,
+          "kind": "history",
+          "rank": 4152133
+        },
+        {
+          "src": 175393,
+          "dst": 103827,
+          "minute": 11332,
+          "amount_usd": 906.02,
+          "kind": "history",
+          "rank": 4154153
+        },
+        {
+          "src": 313234,
+          "dst": 102436,
+          "minute": 11421,
+          "amount_usd": 1023.17,
+          "kind": "history",
+          "rank": 4182629
+        },
+        {
+          "src": 313234,
+          "dst": 102436,
+          "minute": 11426,
+          "amount_usd": 716.92,
+          "kind": "history",
+          "rank": 4184219
+        },
+        {
+          "src": 167053,
+          "dst": 164857,
+          "minute": 11564,
+          "amount_usd": 708.3,
+          "kind": "history",
+          "rank": 4248962
+        },
+        {
+          "src": 175502,
+          "dst": 175731,
+          "minute": 11583,
+          "amount_usd": 2256.07,
+          "kind": "history",
+          "rank": 4257451
+        },
+        {
+          "src": 175502,
+          "dst": 175731,
+          "minute": 11590,
+          "amount_usd": 4874.98,
+          "kind": "history",
+          "rank": 4260518
+        },
+        {
+          "src": 313234,
+          "dst": 310425,
+          "minute": 11621,
+          "amount_usd": 138.32,
+          "kind": "history",
+          "rank": 4274361
+        },
+        {
+          "src": 313234,
+          "dst": 310425,
+          "minute": 11635,
+          "amount_usd": 1131.4,
+          "kind": "history",
+          "rank": 4280706
+        },
+        {
+          "src": 164775,
+          "dst": 175502,
+          "minute": 11671,
+          "amount_usd": 2687.47,
+          "kind": "history",
+          "rank": 4296857
+        },
+        {
+          "src": 164775,
+          "dst": 175502,
+          "minute": 11672,
+          "amount_usd": 5914.5,
+          "kind": "history",
+          "rank": 4297304
+        },
+        {
+          "src": 102425,
+          "dst": 357864,
+          "minute": 11703,
+          "amount_usd": 5083.29,
+          "kind": "history",
+          "rank": 4310929
+        },
+        {
+          "src": 102425,
+          "dst": 357864,
+          "minute": 11709,
+          "amount_usd": 742.95,
+          "kind": "history",
+          "rank": 4313596
+        },
+        {
+          "src": 488022,
+          "dst": 515086,
+          "minute": 11769,
+          "amount_usd": 713.74,
+          "kind": "history",
+          "rank": 4340000
+        },
+        {
+          "src": 484981,
+          "dst": 515086,
+          "minute": 11782,
+          "amount_usd": 619.24,
+          "kind": "history",
+          "rank": 4345768
+        },
+        {
+          "src": 167053,
+          "dst": 167053,
+          "minute": 11804,
+          "amount_usd": 4.8,
+          "kind": "history",
+          "rank": 4355394
+        },
+        {
+          "src": 484103,
+          "dst": 515086,
+          "minute": 11804,
+          "amount_usd": 147.84,
+          "kind": "history",
+          "rank": 4355406
+        },
+        {
+          "src": 167053,
+          "dst": 167053,
+          "minute": 11805,
+          "amount_usd": 21.41,
+          "kind": "history",
+          "rank": 4355858
+        },
+        {
+          "src": 485482,
+          "dst": 515086,
+          "minute": 11820,
+          "amount_usd": 588.11,
+          "kind": "history",
+          "rank": 4362546
+        },
+        {
+          "src": 167053,
+          "dst": 167053,
+          "minute": 11822,
+          "amount_usd": 215.02,
+          "kind": "history",
+          "rank": 4363445
+        },
+        {
+          "src": 175393,
+          "dst": 313234,
+          "minute": 11827,
+          "amount_usd": 323764.02,
+          "kind": "history",
+          "rank": 4365677
+        }
+      ]
+    },
+    "window_minutes": 4320,
+    "cap_1hop": 10,
+    "cap_2hop": 4
+  },
+  "model_version": "export-6109de3b6779:07b6e09d58ca",
+  "export_key": "export-6109de3b6779",
+  "narrative": "On day 9 at 05:08, account 175393 (bank 0121) sent 9,827.70 USD by ACH to account 164775 (bank 0118). The sender paid 36,842.42 Saudi Riyal. It crossed banks (0121 to 0118). The model scored it 0.6632 (calibrated probability 0.880), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+4.413); pair_is_new = 1 (+1.432); log_amount_usd = 9.193 (+1.027); out_port = 2.89 (+0.740); u_out_fmt_ach_1d = 5 (+0.490); base value -10.744. No rule fired. Matched typology (decision tree): FAN-OUT (u_out_newcp_1d = 4 > 0.5; the sender was paid by 4 distinct counterparties in the previous 3 days (u_in_uniq_3d = 4 > 2.5); the sender was paid by 4 distinct counterparties in the previous 3 days (u_in_uniq_3d = 4 > 3.5); the sender paid 9 distinct counterparties in the previous day (u_out_uniq_1d = 9 > 3.5); 50% of 10 validation cases at this leaf were FAN-OUT). The causal subgraph shows 33 accounts and 74 earlier payments from the 3 days before the alert."
+}

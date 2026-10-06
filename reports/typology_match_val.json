@@ -1,0 +1,554 @@
+{
+  "period": "val",
+  "days": [
+    7,
+    8
+  ],
+  "rows": 965524,
+  "rate_tag": "0p005",
+  "threshold": 0.022294557644632167,
+  "model_version": "export-6109de3b6779:07b6e09d58ca",
+  "champion": {
+    "source": "bundle",
+    "bundle_dir": "/data/models/serving"
+  },
+  "keys": {
+    "data": "data-92dd21b72722",
+    "rules": "rules-851aa23fb506",
+    "rules_engine": "rules_engine-1cdefaafac26",
+    "features": "features-1e538c068454",
+    "lgbm_tx": "lgbm_tx-875618a5b3f2",
+    "lgbm_graph": "lgbm_graph-abd44403c57a",
+    "eval": "eval-603c659874ad",
+    "export": "export-6109de3b6779",
+    "case_eval": "case_eval-b71354a9ccbd"
+  },
+  "rows_note": "true-positive alerts of the period; truth = the labelled typology, OTHER for positives outside the Patterns file",
+  "compare": {
+    "rows": 730,
+    "majority": {
+      "label": "STACK",
+      "accuracy": 0.2
+    },
+    "tree_cv": 0.510958904109589,
+    "tree_train": 0.584931506849315,
+    "rules_tuned": 0.21095890410958903,
+    "rules_at_config": 0.1506849315068493,
+    "cv_folds": 5,
+    "note": "tree_cv is the out-of-fold accuracy of the same tree settings (stratified k-fold on these rows, not grouped by attempt, so optimistic; test is the measure); tree_train and rules_tuned are in-sample (fitted or tuned on these rows)"
+  },
+  "tree": {
+    "file": "typology_tree_val.json",
+    "copy_to": "configs/typology_tree.json",
+    "params": {
+      "max_depth": 5,
+      "min_samples_leaf": 10,
+      "seed": 0
+    },
+    "depth": 5,
+    "leaves": 21,
+    "inputs": [
+      "u_out_newcp_1d",
+      "g_dst_in_deg",
+      "log_amount_usd",
+      "v_out_uniq_3d",
+      "g_n_nodes",
+      "u_inflow_12h",
+      "u_in_gap",
+      "v_in_same_fmt_1d",
+      "v_in_mean_3d",
+      "v_in_max_1d",
+      "u_out_gap",
+      "u_in_uniq_3d",
+      "u_out_fmt_cheque_1d",
+      "u_in_sum_1d",
+      "u_out_std_1d",
+      "u_out_mean_3d",
+      "u_out_uniq_1d"
+    ],
+    "train_accuracy": 0.584931506849315,
+    "cv_accuracy": 0.510958904109589,
+    "cv_folds": 5,
+    "importances": [
+      {
+        "feature": "u_in_uniq_3d",
+        "importance": 0.19562059824855518
+      },
+      {
+        "feature": "u_out_newcp_1d",
+        "importance": 0.15784840887277327
+      },
+      {
+        "feature": "g_dst_in_deg",
+        "importance": 0.1346123828044937
+      },
+      {
+        "feature": "log_amount_usd",
+        "importance": 0.12445840705778259
+      },
+      {
+        "feature": "v_in_same_fmt_1d",
+        "importance": 0.08551735716383313
+      },
+      {
+        "feature": "v_in_mean_3d",
+        "importance": 0.06930412703215283
+      },
+      {
+        "feature": "v_out_uniq_3d",
+        "importance": 0.04277140910356585
+      },
+      {
+        "feature": "u_inflow_12h",
+        "importance": 0.04180066505790397
+      },
+      {
+        "feature": "g_n_nodes",
+        "importance": 0.027416256545961873
+      },
+      {
+        "feature": "u_out_fmt_cheque_1d",
+        "importance": 0.02189731717778262
+      }
+    ]
+  },
+  "tuned": {
+    "cycle_min": 1,
+    "sg_min": 1,
+    "gs_min": 2,
+    "fan_out_min": 3,
+    "fan_in_min": 3,
+    "stack_pt_tol": 0.3,
+    "bipartite_min": 2,
+    "random_in_min": null,
+    "random_out_max": 1
+  },
+  "accuracy": {
+    "n": 730,
+    "correct": 154,
+    "accuracy": 0.21095890410958903,
+    "macro_recall": 0.2086843698812183,
+    "majority": {
+      "label": "STACK",
+      "accuracy": 0.2
+    },
+    "per_typology": {
+      "FAN-OUT": {
+        "support": 63,
+        "predicted": 81,
+        "correct": 8,
+        "recall": 0.12698412698412698,
+        "precision": 0.09876543209876543
+      },
+      "FAN-IN": {
+        "support": 60,
+        "predicted": 74,
+        "correct": 24,
+        "recall": 0.4,
+        "precision": 0.32432432432432434
+      },
+      "CYCLE": {
+        "support": 63,
+        "predicted": 40,
+        "correct": 5,
+        "recall": 0.07936507936507936,
+        "precision": 0.125
+      },
+      "SCATTER-GATHER": {
+        "support": 132,
+        "predicted": 3,
+        "correct": 2,
+        "recall": 0.015151515151515152,
+        "precision": 0.6666666666666666
+      },
+      "GATHER-SCATTER": {
+        "support": 95,
+        "predicted": 129,
+        "correct": 29,
+        "recall": 0.30526315789473685,
+        "precision": 0.2248062015503876
+      },
+      "STACK": {
+        "support": 146,
+        "predicted": 54,
+        "correct": 10,
+        "recall": 0.0684931506849315,
+        "precision": 0.18518518518518517
+      },
+      "BIPARTITE": {
+        "support": 48,
+        "predicted": 6,
+        "correct": 1,
+        "recall": 0.020833333333333332,
+        "precision": 0.16666666666666666
+      },
+      "RANDOM": {
+        "support": 36,
+        "predicted": 0,
+        "correct": 0,
+        "recall": 0.0,
+        "precision": null
+      },
+      "OTHER": {
+        "support": 87,
+        "predicted": 343,
+        "correct": 75,
+        "recall": 0.8620689655172413,
+        "precision": 0.21865889212827988
+      }
+    },
+    "confusion": {
+      "FAN-OUT": {
+        "FAN-OUT": 8,
+        "FAN-IN": 0,
+        "CYCLE": 5,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 35,
+        "STACK": 0,
+        "BIPARTITE": 0,
+        "RANDOM": 0,
+        "OTHER": 15
+      },
+      "FAN-IN": {
+        "FAN-OUT": 4,
+        "FAN-IN": 24,
+        "CYCLE": 2,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 0,
+        "STACK": 0,
+        "BIPARTITE": 0,
+        "RANDOM": 0,
+        "OTHER": 30
+      },
+      "CYCLE": {
+        "FAN-OUT": 3,
+        "FAN-IN": 0,
+        "CYCLE": 5,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 5,
+        "STACK": 22,
+        "BIPARTITE": 0,
+        "RANDOM": 0,
+        "OTHER": 28
+      },
+      "SCATTER-GATHER": {
+        "FAN-OUT": 20,
+        "FAN-IN": 33,
+        "CYCLE": 7,
+        "SCATTER-GATHER": 2,
+        "GATHER-SCATTER": 32,
+        "STACK": 0,
+        "BIPARTITE": 2,
+        "RANDOM": 0,
+        "OTHER": 36
+      },
+      "GATHER-SCATTER": {
+        "FAN-OUT": 16,
+        "FAN-IN": 12,
+        "CYCLE": 8,
+        "SCATTER-GATHER": 1,
+        "GATHER-SCATTER": 29,
+        "STACK": 1,
+        "BIPARTITE": 2,
+        "RANDOM": 0,
+        "OTHER": 26
+      },
+      "STACK": {
+        "FAN-OUT": 19,
+        "FAN-IN": 2,
+        "CYCLE": 7,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 17,
+        "STACK": 10,
+        "BIPARTITE": 1,
+        "RANDOM": 0,
+        "OTHER": 90
+      },
+      "BIPARTITE": {
+        "FAN-OUT": 7,
+        "FAN-IN": 0,
+        "CYCLE": 1,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 3,
+        "STACK": 2,
+        "BIPARTITE": 1,
+        "RANDOM": 0,
+        "OTHER": 34
+      },
+      "RANDOM": {
+        "FAN-OUT": 2,
+        "FAN-IN": 1,
+        "CYCLE": 2,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 6,
+        "STACK": 16,
+        "BIPARTITE": 0,
+        "RANDOM": 0,
+        "OTHER": 9
+      },
+      "OTHER": {
+        "FAN-OUT": 2,
+        "FAN-IN": 2,
+        "CYCLE": 3,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 2,
+        "STACK": 3,
+        "BIPARTITE": 0,
+        "RANDOM": 0,
+        "OTHER": 75
+      }
+    },
+    "model": "rules",
+    "params": {
+      "cycle_min": 1,
+      "sg_min": 1,
+      "gs_min": 2,
+      "fan_out_min": 3,
+      "fan_in_min": 3,
+      "stack_pt_tol": 0.3,
+      "bipartite_min": 2,
+      "random_in_min": null,
+      "random_out_max": 1
+    }
+  },
+  "at_config": {
+    "n": 730,
+    "correct": 110,
+    "accuracy": 0.1506849315068493,
+    "macro_recall": 0.15545419907113878,
+    "majority": {
+      "label": "STACK",
+      "accuracy": 0.2
+    },
+    "per_typology": {
+      "FAN-OUT": {
+        "support": 63,
+        "predicted": 26,
+        "correct": 1,
+        "recall": 0.015873015873015872,
+        "precision": 0.038461538461538464
+      },
+      "FAN-IN": {
+        "support": 60,
+        "predicted": 34,
+        "correct": 9,
+        "recall": 0.15,
+        "precision": 0.2647058823529412
+      },
+      "CYCLE": {
+        "support": 63,
+        "predicted": 40,
+        "correct": 5,
+        "recall": 0.07936507936507936,
+        "precision": 0.125
+      },
+      "SCATTER-GATHER": {
+        "support": 132,
+        "predicted": 3,
+        "correct": 2,
+        "recall": 0.015151515151515152,
+        "precision": 0.6666666666666666
+      },
+      "GATHER-SCATTER": {
+        "support": 95,
+        "predicted": 129,
+        "correct": 29,
+        "recall": 0.30526315789473685,
+        "precision": 0.2248062015503876
+      },
+      "STACK": {
+        "support": 146,
+        "predicted": 51,
+        "correct": 9,
+        "recall": 0.06164383561643835,
+        "precision": 0.17647058823529413
+      },
+      "BIPARTITE": {
+        "support": 48,
+        "predicted": 19,
+        "correct": 1,
+        "recall": 0.020833333333333332,
+        "precision": 0.05263157894736842
+      },
+      "RANDOM": {
+        "support": 36,
+        "predicted": 163,
+        "correct": 8,
+        "recall": 0.2222222222222222,
+        "precision": 0.049079754601226995
+      },
+      "OTHER": {
+        "support": 87,
+        "predicted": 265,
+        "correct": 46,
+        "recall": 0.5287356321839081,
+        "precision": 0.17358490566037735
+      }
+    },
+    "confusion": {
+      "FAN-OUT": {
+        "FAN-OUT": 1,
+        "FAN-IN": 0,
+        "CYCLE": 5,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 35,
+        "STACK": 0,
+        "BIPARTITE": 4,
+        "RANDOM": 1,
+        "OTHER": 17
+      },
+      "FAN-IN": {
+        "FAN-OUT": 1,
+        "FAN-IN": 9,
+        "CYCLE": 2,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 0,
+        "STACK": 0,
+        "BIPARTITE": 2,
+        "RANDOM": 15,
+        "OTHER": 31
+      },
+      "CYCLE": {
+        "FAN-OUT": 0,
+        "FAN-IN": 0,
+        "CYCLE": 5,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 5,
+        "STACK": 19,
+        "BIPARTITE": 1,
+        "RANDOM": 23,
+        "OTHER": 10
+      },
+      "SCATTER-GATHER": {
+        "FAN-OUT": 5,
+        "FAN-IN": 25,
+        "CYCLE": 7,
+        "SCATTER-GATHER": 2,
+        "GATHER-SCATTER": 32,
+        "STACK": 0,
+        "BIPARTITE": 3,
+        "RANDOM": 12,
+        "OTHER": 46
+      },
+      "GATHER-SCATTER": {
+        "FAN-OUT": 6,
+        "FAN-IN": 0,
+        "CYCLE": 8,
+        "SCATTER-GATHER": 1,
+        "GATHER-SCATTER": 29,
+        "STACK": 2,
+        "BIPARTITE": 5,
+        "RANDOM": 17,
+        "OTHER": 27
+      },
+      "STACK": {
+        "FAN-OUT": 9,
+        "FAN-IN": 0,
+        "CYCLE": 7,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 17,
+        "STACK": 9,
+        "BIPARTITE": 3,
+        "RANDOM": 40,
+        "OTHER": 61
+      },
+      "BIPARTITE": {
+        "FAN-OUT": 2,
+        "FAN-IN": 0,
+        "CYCLE": 1,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 3,
+        "STACK": 2,
+        "BIPARTITE": 1,
+        "RANDOM": 15,
+        "OTHER": 24
+      },
+      "RANDOM": {
+        "FAN-OUT": 1,
+        "FAN-IN": 0,
+        "CYCLE": 2,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 6,
+        "STACK": 16,
+        "BIPARTITE": 0,
+        "RANDOM": 8,
+        "OTHER": 3
+      },
+      "OTHER": {
+        "FAN-OUT": 1,
+        "FAN-IN": 0,
+        "CYCLE": 3,
+        "SCATTER-GATHER": 0,
+        "GATHER-SCATTER": 2,
+        "STACK": 3,
+        "BIPARTITE": 0,
+        "RANDOM": 32,
+        "OTHER": 46
+      }
+    },
+    "model": "rules",
+    "params": {
+      "cycle_min": 1,
+      "sg_min": 1,
+      "gs_min": 2,
+      "fan_out_min": 5,
+      "fan_in_min": 5,
+      "stack_pt_tol": 0.2,
+      "bipartite_min": 2,
+      "random_in_min": 1,
+      "random_out_max": 1
+    }
+  },
+  "tuning": {
+    "n_rows": 730,
+    "combinations": 432,
+    "grid": {
+      "cycle_min": [
+        1
+      ],
+      "sg_min": [
+        1,
+        2
+      ],
+      "gs_min": [
+        2,
+        3
+      ],
+      "fan_out_min": [
+        3,
+        5,
+        8
+      ],
+      "fan_in_min": [
+        3,
+        5,
+        8
+      ],
+      "stack_pt_tol": [
+        0.1,
+        0.3,
+        null
+      ],
+      "bipartite_min": [
+        2,
+        null
+      ],
+      "random_in_min": [
+        1,
+        null
+      ]
+    },
+    "base": {
+      "cycle_min": 1,
+      "sg_min": 1,
+      "gs_min": 2,
+      "fan_out_min": 5,
+      "fan_in_min": 5,
+      "stack_pt_tol": 0.2,
+      "bipartite_min": 2,
+      "random_in_min": 1,
+      "random_out_max": 1
+    }
+  },
+  "next_step": "copy typology_tree_val.json to configs/typology_tree.json and `tuned` into configs/explain.yaml `typology:`, then `make cases`"
+}

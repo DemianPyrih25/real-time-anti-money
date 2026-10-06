@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
+import subprocess
+import sys
+import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -144,6 +149,44 @@ def cpu_job(cpu: float, memory_mib: int, timeout: int) -> dict[str, Any]:
     }
 
 
+# cuBLAS needs a fixed workspace for deterministic GEMMs under use_deterministic_algorithms.
+CUBLAS_WORKSPACE_CONFIG = ":4096:8"
+
+
+WORKER_MAX_RETRIES = 2  # Modal retries of a GNN worker input (a timed-out attempt is retried)
+
+
+def gpu_job(
+    *,
+    gpu: str = "L4",
+    cpu: float = 8.0,
+    memory_mib: int = 32768,
+    timeout: int = 3600,
+    retries: bool = False,
+) -> dict[str, Any]:
+    """`@app.function` kwargs for a GNN GPU worker (M3 spec §12): one container, fast scale-down.
+
+    cpu = (request, limit) with limit = request: extra sampler workers are throttled, never
+    billed above the request. memory = (request, request + 8 GiB). `retries` adds
+    Retries(max_retries=2, initial_delay=0) (the HPO / train workers only: their runs resume from
+    checkpoints, and deterministic errors return instead of raising). Drivers use cpu_job.
+    """
+    kw: dict[str, Any] = {
+        "image": gpu_image,
+        "gpu": gpu,
+        "cpu": (float(cpu), float(cpu)),
+        "memory": (memory_mib, memory_mib + 8192),
+        "timeout": timeout,
+        "max_containers": 1,
+        "scaledown_window": 2,
+        "volumes": {DATA_ROOT: vol},
+        "env": {**thread_env(cpu), "CUBLAS_WORKSPACE_CONFIG": CUBLAS_WORKSPACE_CONFIG},
+    }
+    if retries:
+        kw["retries"] = modal.Retries(max_retries=WORKER_MAX_RETRIES, initial_delay=0.0)
+    return kw
+
+
 # --- configs and run keys ------------------------------------------------------------------
 
 # data.yaml sections that change prepare_data's outputs, EDA included (`evaluation` only affects
@@ -253,24 +296,36 @@ def lgbm_graph_key(cfgs: dict[str, dict]) -> str:
     return run_key("lgbm_graph", features_key(cfgs), cfgs["lgbm"])
 
 
-def eval_key(cfgs: dict[str, dict], with_nofmt: bool = False) -> str:
+def eval_key(
+    cfgs: dict[str, dict], with_nofmt: bool = False, gnn_keys: dict[str, str] | None = None
+) -> str:
+    """The evaluation key. `gnn_keys` (evaluated GNN model -> its set key, M3) is appended only
+    when non-empty, so without GNN models the key is M2's, byte for byte."""
     from aml.config import run_key
 
-    return run_key(
-        "eval",
+    parts: list[Any] = [
         rules_engine_key(cfgs),
         lgbm_key(cfgs),
         lgbm_graph_key(cfgs),
         cfgs["data"],
         cfgs["rules"],
         bool(with_nofmt),
-    )
+    ]
+    if gnn_keys:
+        parts.append(dict(sorted(gnn_keys.items())))
+    return run_key("eval", *parts)
+
+
+def export_inputs(cfgs: dict[str, dict]) -> dict:
+    """What run_export reads from serving.yaml: only `replay`. The M5 demo settings in the same
+    file never re-key or rebuild the bundle (the canonical JSON equals the M2 config's)."""
+    return {"replay": {"max_events": cfgs["serving"]["replay"]["max_events"]}}
 
 
 def export_key(cfgs: dict[str, dict]) -> str:
     from aml.config import run_key
 
-    return run_key("export", lgbm_graph_key(cfgs), rules_engine_key(cfgs), cfgs["serving"])
+    return run_key("export", lgbm_graph_key(cfgs), rules_engine_key(cfgs), export_inputs(cfgs))
 
 
 def all_keys(cfgs: dict[str, dict]) -> dict[str, str]:
@@ -283,6 +338,112 @@ def all_keys(cfgs: dict[str, dict]) -> dict[str, str]:
         "lgbm_graph": lgbm_graph_key(cfgs),
         "eval": eval_key(cfgs),
         "export": export_key(cfgs),
+    }
+
+
+# --- M3 (GNN) run keys -----------------------------------------------------------------------
+
+# gnn.yaml `sampler` values gnn_bench decides: excluded from the bench key (no circularity).
+BENCH_DECIDED = ("batch_size", "max_edges_per_step", "max_edges_per_eval_step")
+# gnn.yaml sections no training key hashes: hardware, money, the pre-registered report rules
+# (hashed separately, aml.models.gnn.report_hash) and the bench grid (re-keys only the bench).
+GNN_UNKEYED = ("runtime", "budget", "report", "bench")
+# The Modal apps whose spend counts against the M3 cap (the cost gate): the GNN jobs and M3's
+# dev apps (the Linux test runner, the GPU smoke test); == aml.models.gnn.costplan's.
+GNN_APPS = ("aml-gnn-bench", "aml-hpo-gnn", "aml-train-gnn")
+DEV_APPS = ("aml-linux-runner", "aml-smoke")
+M3_APPS = GNN_APPS + DEV_APPS
+
+
+def gnn_graph_key(cfgs: dict[str, dict]) -> str:
+    """The graph encoding and the replay it reads, + GNN_VERSION (the GNN's opt-in to code)."""
+    from aml.config import run_key
+    from aml.models.gnn import GNN_VERSION
+
+    return run_key(
+        "gnn_graph",
+        features_key(cfgs),
+        data_content_key(cfgs),
+        cfgs["gnn"]["graph"],
+        GNN_VERSION,
+    )
+
+
+def gnn_bench_key(cfgs: dict[str, dict]) -> str:
+    """The bench: everything it measures, without the values it decides."""
+    from aml.config import run_key
+
+    g = cfgs["gnn"]
+    sampler = {k: v for k, v in g["sampler"].items() if k not in BENCH_DECIDED}
+    faithful = {k: g["protocols"]["faithful"][k] for k in ("fanout",)}
+    pna = {k: g["protocols"]["pna"][k] for k in ("hidden", "towers")}
+    return run_key(
+        "gnn_bench",
+        gnn_graph_key(cfgs),
+        sampler,
+        g["model"],
+        g["train"]["neg_rate"],
+        g["bench"],
+        faithful,
+        pna,
+    )
+
+
+def gnn_hpo_key(cfgs: dict[str, dict]) -> str:
+    from aml.config import run_key
+
+    g = cfgs["gnn"]
+    return run_key("gnn_hpo", gnn_graph_key(cfgs), g["sampler"], g["model"], g["train"], g["hpo"])
+
+
+def gnn_run_key(
+    cfgs: dict[str, dict],
+    protocol: str,
+    seed: int,
+    params: dict[str, Any],
+    *,
+    dev: bool = False,
+    max_epochs: int | None = None,
+) -> str:
+    """One (protocol, seed) training run; `params` = the effective hyperparameters
+    (aml.models.gnn.train.effective_params). The protocol's seed list is not part of it, so a
+    cut of the look-ahead seeds keeps seed 0's run."""
+    from aml.config import run_key
+
+    g = cfgs["gnn"]
+    proto = {k: v for k, v in g["protocols"][protocol].items() if k not in ("seeds", "seed")}
+    return run_key(
+        "gnn_dev" if dev else "gnn",
+        gnn_graph_key(cfgs),
+        protocol,
+        int(seed),
+        g["sampler"],
+        g["model"],
+        g["train"],
+        proto,
+        params,
+        max_epochs,
+    )
+
+
+def gnn_set_key(cfgs: dict[str, dict], protocol: str, run_keys: list[str]) -> str:
+    """A protocol's set = its ordered per-seed run keys (cfgs is unused; the signature matches
+    the other key functions)."""
+    from aml.config import run_key
+
+    del cfgs
+    if not run_keys or not all(isinstance(k, str) for k in run_keys):
+        raise ValueError(f"a set needs its per-seed run keys, got {run_keys!r}")
+    return run_key(f"gnn_{protocol}", list(run_keys))
+
+
+def gnn_keys(cfgs: dict[str, dict]) -> dict[str, str]:
+    """The GNN keys computable from configs alone. Per-run and set keys need HPO's
+    best_params.json and are computed by the job entrypoints."""
+    return {
+        "gnn_graph": gnn_graph_key(cfgs),
+        "gnn_bench": gnn_bench_key(cfgs),
+        "gnn_hpo": gnn_hpo_key(cfgs),
     }
 
 
@@ -493,3 +654,166 @@ def print_summary(title: str, summary: dict[str, Any], keys: list[str] | None = 
         if keys is None and isinstance(v, dict | list):
             continue
         print(f"  {k}: {v}")
+
+
+# --- local helpers (laptop; no Modal container) ---------------------------------------------
+
+BILLING_WINDOW_DAYS = 62  # the cost gate sums the M3 apps' spend over this window
+
+
+def read_volume_json(path: str | Path) -> dict | None:
+    """Read a JSON file from the Volume from the laptop (`vol.read_file`, no container).
+
+    `path` is a container path under /data or a Volume-relative path; None if it is missing.
+    """
+    p = Path(path).as_posix()
+    if p == DATA_ROOT or p.startswith(DATA_ROOT + "/"):
+        p = p[len(DATA_ROOT) :] or "/"
+    try:
+        data = b"".join(vol.read_file(p))
+    except (FileNotFoundError, modal.exception.NotFoundError):
+        return None
+    return json.loads(data.decode("utf-8"))
+
+
+def read_volume_jsonl(path: str | Path) -> list[dict] | None:
+    """read_volume_json for a JSON-lines file (history.jsonl, a trial log): its records, None if
+    missing. A torn last line (no trailing newline) is ignored, as aml.models.gnn.read_jsonl
+    does; a malformed line is skipped (the callers only estimate progress from it)."""
+    p = Path(path).as_posix()
+    if p == DATA_ROOT or p.startswith(DATA_ROOT + "/"):
+        p = p[len(DATA_ROOT) :] or "/"
+    try:
+        data = b"".join(vol.read_file(p))
+    except (FileNotFoundError, modal.exception.NotFoundError):
+        return None
+    *complete, _torn = data.decode("utf-8").split("\n")
+    out = []
+    for line in complete:
+        if not line.strip():
+            continue
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return out
+
+
+def _modal_cli_json(args: list[str], timeout: int = 180) -> tuple[Any, str | None]:
+    """Run `python -m modal <args>` and parse its JSON stdout. Never raises: (value, error)."""
+    cmd = [sys.executable, "-m", "modal", *args]
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=timeout,
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        return None, f"billing CLI failed to run: {type(e).__name__}"
+    if proc.returncode != 0:
+        tail = (proc.stderr or "").strip().splitlines()[-1:] or ["no stderr"]
+        return None, f"billing CLI exited {proc.returncode}: {tail[0][:300]}"
+    try:
+        return json.loads(proc.stdout), None
+    except json.JSONDecodeError:
+        return None, "billing CLI output was not JSON"
+
+
+# `modal billing report` refuses hourly reports over 7 days and daily reports over 31 days.
+HOURLY_REPORT_MAX_DAYS = 7
+DAILY_REPORT_PIECE_DAYS = 30
+
+
+def _report_rows(report: Any) -> list[dict]:
+    if isinstance(report, list):
+        return [r for r in report if isinstance(r, dict)]
+    if isinstance(report, dict):
+        for key in ("rows", "items", "data", "report", "results"):
+            if isinstance(report.get(key), list):
+                return [r for r in report[key] if isinstance(r, dict)]
+    return []
+
+
+def _row_start(row: dict) -> datetime | None:
+    raw = row.get("interval_start")
+    if not isinstance(raw, str):
+        return None
+    try:
+        ts = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return ts if ts.tzinfo else ts.replace(tzinfo=UTC)
+
+
+def fetch_billing_report(
+    start_ms: int | None, resolution: str = "h"
+) -> tuple[list | dict | None, str | None]:
+    """Run `modal billing report --json` locally from the day of `start_ms` (ms since epoch;
+    None = today). Never raises: returns (report, error). (Moved here from evaluate.py.)
+
+    An hourly report longer than HOURLY_REPORT_MAX_DAYS is fetched as daily rows up to the start
+    of today (UTC; the end date is exclusive) plus hourly rows from today, merged into one list
+    (rows from each part are kept only on their side of today's midnight, so nothing is counted
+    twice)."""
+    now = datetime.now(UTC)
+    start = datetime.fromtimestamp(start_ms / 1000, tz=UTC) if start_ms else now
+    day = "%Y-%m-%d"
+    if resolution != "h" or (now - start).days < HOURLY_REPORT_MAX_DAYS - 1:
+        return _modal_cli_json(
+            [
+                "billing",
+                "report",
+                "--start",
+                start.strftime(day),
+                "--resolution",
+                resolution,
+                "--json",
+            ]
+        )
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    daily: list[dict] = []
+    lo = start.replace(hour=0, minute=0, second=0, microsecond=0)
+    while lo < midnight:  # daily reports are refused above 31 days: fetch 30-day pieces
+        hi = min(lo + timedelta(days=DAILY_REPORT_PIECE_DAYS), midnight)
+        part, err = _modal_cli_json(
+            [
+                "billing",
+                "report",
+                "--start",
+                lo.strftime(day),
+                "--end",
+                hi.strftime(day),
+                "--resolution",
+                "d",
+                "--json",
+            ]
+        )
+        if err is not None:
+            return None, err
+        daily += [r for r in _report_rows(part) if (s := _row_start(r)) is None or lo <= s < hi]
+        lo = hi
+    hourly, err = _modal_cli_json(
+        ["billing", "report", "--start", midnight.strftime(day), "--resolution", "h", "--json"]
+    )
+    if err is not None:
+        return None, err
+    rows = daily
+    rows += [r for r in _report_rows(hourly) if (s := _row_start(r)) is None or s >= midnight]
+    return rows, None
+
+
+def fetch_billing_summary() -> tuple[dict | None, str | None]:
+    """Run `modal billing summary --json` (this cycle: {metered_cost, billed_cost, adjustments,
+    metered_cost_breakdown}, amounts as strings). Never raises: returns (summary, error)."""
+    out, err = _modal_cli_json(["billing", "summary", "--json"])
+    if err is None and not isinstance(out, dict):
+        return None, "billing summary output was not a JSON object"
+    return out, err
+
+
+def billing_window_start_ms(days: int = BILLING_WINDOW_DAYS) -> int:
+    """Start of the cost gate's billing window: now - `days`, in ms since epoch."""
+    return int((time.time() - days * 86400) * 1000)

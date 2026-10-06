@@ -1,0 +1,340 @@
+{% extends "base.html.j2" %}
+{# One alert's case pack (aml.explain.casepack): header, 5W+H, narrative, TreeSHAP drivers and
+   the causal subgraph. Text is rendered here with autoescape; the graph script reads the pack
+   from the inline JSON element (JSON.parse of its textContent) and sets text with textContent
+   only. Variables: pack, who, what, when, where, why, how, typ, bars, nodes, edges, n_history,
+   window, pack_json (script_json), cytoscape_url. typ.model ("tree" | "rules") is read with
+   .get: packs written before the tree have none (the decision list labelled them). #}
+{% block title %}Case {{ pack["id"] }} · AML scorer{% endblock %}
+
+{% block style %}
+{% raw %}
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 16px; }
+.narrative { font-size: 15px; line-height: 1.65; max-width: 86ch; margin: 0; }
+ul.evidence { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; display: grid; gap: 4px; }
+.typ { font-size: 20px; font-weight: 600; letter-spacing: -.005em; }
+.rules { display: flex; flex-wrap: wrap; gap: 6px; }
+.drivers { display: grid; }
+.drow { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr) 64px; align-items: center; gap: 6px 14px; padding-block: 8px; border-bottom: 1px solid var(--grid); }
+.drow:last-child { border-bottom: 0; }
+.dname { min-width: 0; overflow-wrap: anywhere; }
+.dname small { display: block; color: var(--muted); font-size: 12px; }
+.dtrack { position: relative; height: 10px; border-radius: 5px; background: var(--band); }
+.dtrack::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--axis); }
+.dbar { position: absolute; top: 0; bottom: 0; border-radius: 5px; }
+.dbar.up { left: 50%; background: var(--crit); }
+.dbar.down { right: 50%; background: var(--pos); }
+.dval { text-align: right; font: 500 13px/1 var(--f-mono); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .drow { grid-template-columns: minmax(0, 1fr) 64px; } .dtrack { grid-column: 1 / -1; grid-row: 2; } }
+#graph { height: 460px; border: 1px solid var(--grid); border-radius: 8px; background: var(--surface-2); }
+#graph-info { min-height: 1.5em; font-size: 13px; color: var(--ink-2); margin: 0; }
+details.pay summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+details.pay[open] summary { margin-bottom: 8px; }
+{% endraw %}
+{% endblock %}
+
+{% block header %}
+<header class="top wrap">
+  <a class="back" href="/cases">&larr; All cases</a>
+  <div class="eyebrow">Case {{ pack["case_key"] }} &middot; alert row {{ pack["id"] }}</div>
+  <h1>Account <span class="mono">{{ who.subject.account }}</span> sent {{ what.amount_usd|money }} USD
+    to account <span class="mono">{{ who.counterparty.account }}</span></h1>
+  <div class="chips">
+    <span class="pill crit">Alert</span>
+    <span class="chip">score <b>{{ why.score|prob }}</b> &ge; threshold <b>{{ why.threshold|prob }}</b></span>
+    <span class="chip">typology <b>{{ typ.label }}</b> ({{ "tree" if typ.get("model") == "tree" else "rules" }})</span>
+    <span class="chip">day <b>{{ when.day }}</b> at <b>{{ when.time }}</b></span>
+    <span class="chip">{{ what.payment_format }}</span>
+  </div>
+  <div class="tiles">
+    <div class="tile">
+      <span class="lab">Model score</span>
+      <span class="val">{{ why.score|prob }}</span>
+      <span class="sub">threshold {{ why.threshold|prob }} at rate tag {{ why.rate_tag }}</span>
+    </div>
+    <div class="tile">
+      <span class="lab">Calibrated probability</span>
+      <span class="val">{{ why.calibrated|prob }}</span>
+      <span class="sub">display only: alerts use the raw score</span>
+    </div>
+    <div class="tile">
+      <span class="lab">Amount</span>
+      <span class="val">{{ what.amount_usd|money }} <small>USD</small></span>
+      <span class="sub">{{ "cross-bank" if where.cross_bank else "same bank" }} &middot; {{ what.payment_format }}</span>
+    </div>
+    <div class="tile">
+      <span class="lab">Rules fired</span>
+      <span class="val">{{ why.rules_fired|length }}</span>
+      <span class="sub">{{ why.rules_fired|join(", ") if why.rules_fired else "no rule scenario fired" }}</span>
+    </div>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<main class="wrap">
+  <section aria-labelledby="h-summary">
+    <div class="card">
+      <div class="card-h"><h3 id="h-summary">Summary</h3><span class="tag">template narrative</span></div>
+      <p class="narrative">{{ pack["narrative"] }}</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-5w">
+    <div class="sec-head"><h2 id="h-5w">Who, what, when, where, why, how</h2>
+      <p>Every value comes from the stored pack; account ids are synthetic.</p></div>
+    <div class="grid">
+      <div class="card s4">
+        <div class="card-h"><h3>Who</h3><span class="tag">parties</span></div>
+        <dl class="kv">
+          <dt>Subject</dt><dd>account <span class="mono">{{ who.subject.account }}</span></dd>
+          <dt>Subject bank</dt><dd>{{ who.subject.bank if who.subject.bank is not none else "unknown" }}</dd>
+          <dt>Counterparty</dt><dd>account <span class="mono">{{ who.counterparty.account }}</span></dd>
+          <dt>Counterparty bank</dt><dd>{{ who.counterparty.bank if who.counterparty.bank is not none else "unknown" }}</dd>
+        </dl>
+      </div>
+      <div class="card s4">
+        <div class="card-h"><h3>What</h3><span class="tag">payment</span></div>
+        <dl class="kv">
+          <dt>Amount (USD)</dt><dd>{{ what.amount_usd|money }}</dd>
+          <dt>Amount paid</dt><dd>{{ what.amount_paid|money }} {{ what.payment_currency if what.payment_currency is not none else "" }}</dd>
+          <dt>Received in</dt><dd>{{ what.receiving_currency if what.receiving_currency is not none else "unknown" }}</dd>
+          <dt>Format</dt><dd>{{ what.payment_format }}</dd>
+        </dl>
+      </div>
+      <div class="card s4">
+        <div class="card-h"><h3>When</h3><span class="tag">simulated time</span></div>
+        <dl class="kv">
+          <dt>Day</dt><dd>{{ when.day }}</dd>
+          <dt>Time</dt><dd>{{ when.time }}</dd>
+          <dt>Minute</dt><dd class="mono">{{ when.minute }}</dd>
+          <dt>Case key</dt><dd class="mono">{{ pack["case_key"] }}</dd>
+        </dl>
+      </div>
+      <div class="card s4">
+        <div class="card-h"><h3>Where</h3><span class="tag">banks</span></div>
+        <dl class="kv">
+          <dt>From bank</dt><dd>{{ where.from_bank if where.from_bank is not none else "unknown" }}</dd>
+          <dt>To bank</dt><dd>{{ where.to_bank if where.to_bank is not none else "unknown" }}</dd>
+          <dt>Cross-bank</dt><dd>{{ "unknown" if where.cross_bank is none else ("yes" if where.cross_bank else "no") }}</dd>
+        </dl>
+      </div>
+      <div class="card s4">
+        <div class="card-h"><h3>Why</h3><span class="tag">decision</span></div>
+        <dl class="kv">
+          <dt>Score</dt><dd>{{ why.score|prob }}</dd>
+          <dt>Threshold</dt><dd>{{ why.threshold|prob }} ({{ why.rate_tag }})</dd>
+          <dt>Typology</dt><dd>{{ typ.label }} ({{ "decision tree" if typ.get("model") == "tree" else "decision list" }})</dd>
+          <dt>Rules fired</dt><dd>{{ why.rules_fired|join(", ") if why.rules_fired else "none" }}</dd>
+        </dl>
+      </div>
+      <div class="card s4">
+        <div class="card-h"><h3>How</h3><span class="tag">causal subgraph</span></div>
+        <dl class="kv">
+          <dt>Accounts</dt><dd>{{ nodes|length }}</dd>
+          <dt>Earlier payments</dt><dd>{{ n_history }}</dd>
+          <dt>Window</dt><dd>the {{ window }} before the alert minute</dd>
+          <dt>Caps</dt><dd>{{ how.cap_1hop }} per direction (hop 1), {{ how.cap_2hop }} (hop 2)</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-why">
+    <div class="sec-head"><h2 id="h-why">Why the model flagged it</h2>
+      <p>TreeSHAP contributions in log-odds: red pushes the score up, blue pulls it down.</p></div>
+    <div class="grid">
+      <div class="card s7">
+        <div class="card-h"><div><h3>Top drivers</h3>
+          <p class="sub">The {{ bars|length }} model inputs with the largest |contribution|</p></div></div>
+        <div class="drivers">
+          {% for d in bars %}
+          <div class="drow">
+            <div class="dname"><span class="mono">{{ d["feature"] }}</span><small>= {{ d["display"] }}</small></div>
+            <div class="dtrack" aria-hidden="true"><span class="dbar {{ 'up' if d['contribution'] > 0 else 'down' }}" style="width: {{ '%.1f'|format(d['pct']) }}%"></span></div>
+            <div class="dval">{{ d["contribution"]|signed }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="foot">Base value {{ why.base_value|signed }}, other inputs {{ why.others_contribution|signed }};
+          total log-odds {{ why.log_odds|signed }}, i.e. score {{ why.score|prob }}.</p>
+      </div>
+      <div class="card s5">
+        <div class="card-h"><div><h3>Typology match</h3>
+          {% if typ.get("model") == "tree" %}
+          <p class="sub">A small decision tree fitted on labelled validation alerts and frozen: the path it took over the alert's causal features and its case subgraph</p></div>
+          <span class="tag">decision tree</span></div>
+          {% else %}
+          <p class="sub">A fixed decision list over the alert's own causal features</p></div>
+          <span class="tag">decision list</span></div>
+          {% endif %}
+        <div class="typ">{{ typ.label }}</div>
+        {% if typ.evidence %}
+        <ul class="evidence">
+          {% for line in typ.evidence %}<li>{{ line }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        <div class="card-h"><h3>Rules</h3></div>
+        <div class="rules">
+          {% for r in why.rules_fired %}<span class="chip"><b>{{ r }}</b></span>{% else %}<span class="foot">No rule scenario fired at the rules' headline tag.</span>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-how">
+    <div class="sec-head"><h2 id="h-how">How the money moved</h2>
+      <p>Payments of the subject and counterparty in the {{ window }} before the alert minute, then one hop further out. Nothing at or after the alert minute is shown.</p></div>
+    <div class="card">
+      <div class="legend" aria-label="Legend">
+        <span><i class="sw disc" style="background: var(--accent)"></i>subject</span>
+        <span><i class="sw disc" style="background: var(--s-graph)"></i>counterparty</span>
+        <span><i class="sw disc" style="background: var(--s-ctx)"></i>other account</span>
+        <span><i class="sw line" style="height: 4px; background: var(--crit)"></i>alerted payment</span>
+        <span><i class="sw line" style="height: 2px; background: var(--axis)"></i>earlier payment (arrow: payer to payee)</span>
+      </div>
+      <div id="graph" role="img" aria-label="Causal subgraph: {{ nodes|length }} accounts, {{ edges|length }} payments"></div>
+      <p id="graph-info" aria-live="polite">Tap an account or a payment for details.</p>
+      <details class="pay">
+        <summary>All {{ edges|length }} payments in the subgraph</summary>
+        <div class="tablewrap">
+          <table class="data">
+            <thead><tr><th>Payment</th><th>From</th><th>To</th><th class="l">When</th><th>Amount (USD)</th></tr></thead>
+            <tbody>
+              {% for e in edges %}
+              <tr{% if e["kind"] == "alert" %} class="hl"{% endif %}><td>{{ "alerted" if e["kind"] == "alert" else "earlier" }} <span class="mono">#{{ e["rank"] }}</span></td><td class="mono">{{ e["src"] }}</td><td class="mono">{{ e["dst"] }}</td><td class="l">{{ e["minute"]|when }}</td><td>{{ e["amount_usd"]|money }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <footer class="end">
+    Model {{ pack["model_version"] }} &middot; export {{ pack["export_key"] if pack["export_key"] is not none else "unknown" }}
+    &middot; pack format {{ pack["pack_format"] }} &middot;
+    <a href="/cases/{{ pack['id'] }}.json">raw pack (JSON)</a> &middot; <a href="/cases">all cases</a>
+  </footer>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script type="application/json" id="case-data">{{ pack_json|safe }}</script>
+<script src="{{ cytoscape_url }}" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+{% raw %}
+(function () {
+  "use strict";
+  var pack = JSON.parse(document.getElementById("case-data").textContent);
+  var box = document.getElementById("graph");
+  var info = document.getElementById("graph-info");
+  var sg = pack.how.subgraph;
+  var HINT = "Tap an account or a payment for details.";
+  var ROLE = { subject: "subject", counterparty: "counterparty", other: "other account" };
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function at(m) {
+    var r = m % 1440;
+    return "day " + (Math.floor(m / 1440) + 1) + ", " + pad(Math.floor(r / 60)) + ":" + pad(r % 60);
+  }
+  function money(x) {
+    return x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function css(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  if (typeof window.cytoscape !== "function") {
+    box.hidden = true;
+    info.textContent = "The graph library did not load (offline?): the payments are listed below.";
+    return;
+  }
+
+  // Hop distance from the subject and counterparty: the concentric rings of the layout.
+  var hop = {};
+  sg.nodes.forEach(function (n) { if (n.role !== "other") { hop[n.id] = 0; } });
+  [1, 2].forEach(function (h) {
+    sg.edges.forEach(function (e) {
+      if (hop[e.src] === h - 1 && hop[e.dst] === undefined) { hop[e.dst] = h; }
+      if (hop[e.dst] === h - 1 && hop[e.src] === undefined) { hop[e.src] = h; }
+    });
+  });
+
+  var elements = sg.nodes.map(function (n) {
+    var d = hop[n.id] === undefined ? 3 : hop[n.id];
+    return { group: "nodes", data: { id: "n" + n.id, label: String(n.id), role: n.role, hop: d } };
+  }).concat(sg.edges.map(function (e) {
+    return { group: "edges", data: {
+      id: "e" + e.rank, source: "n" + e.src, target: "n" + e.dst, kind: e.kind,
+      src: e.src, dst: e.dst, minute: e.minute, amount: e.amount_usd
+    } };
+  }));
+
+  function style() {
+    return [
+      { selector: "node", style: {
+        "background-color": css("--s-ctx"), "border-width": 1.5, "border-color": css("--surface"),
+        width: 14, height: 14, label: "data(label)", color: css("--ink-2"),
+        "font-family": "IBM Plex Mono, ui-monospace, monospace", "font-size": 10,
+        "text-valign": "bottom", "text-margin-y": 4
+      } },
+      { selector: "node[role = 'subject']", style: {
+        "background-color": css("--accent"), width: 24, height: 24, color: css("--ink"),
+        "font-size": 12, "font-weight": "bold"
+      } },
+      { selector: "node[role = 'counterparty']", style: {
+        "background-color": css("--s-graph"), width: 20, height: 20, color: css("--ink"),
+        "font-size": 11
+      } },
+      { selector: "edge", style: {
+        width: 1.2, "line-color": css("--axis"), "target-arrow-color": css("--axis"),
+        "target-arrow-shape": "triangle", "arrow-scale": 0.8, "curve-style": "bezier"
+      } },
+      { selector: "edge[kind = 'alert']", style: {
+        width: 3.5, "line-color": css("--crit"), "target-arrow-color": css("--crit"), "z-index": 9
+      } },
+      { selector: ":selected", style: {
+        "overlay-color": css("--accent"), "overlay-opacity": 0.15, "overlay-padding": 4
+      } }
+    ];
+  }
+
+  var cy = window.cytoscape({
+    container: box,
+    elements: elements,
+    style: style(),
+    layout: {
+      name: "concentric",
+      concentric: function (n) { return 3 - n.data("hop"); },
+      levelWidth: function () { return 1; },
+      minNodeSpacing: 30,
+      padding: 24,
+      animate: false
+    },
+    minZoom: 0.25,
+    maxZoom: 4,
+    boxSelectionEnabled: false
+  });
+
+  cy.on("tap", "node", function (ev) {
+    var d = ev.target.data();
+    var where = d.hop === 1 ? ", 1 hop out" : (d.hop === 2 ? ", 2 hops out" : "");
+    info.textContent = "Account " + d.label + ": " + ROLE[d.role] + where;
+  });
+  cy.on("tap", "edge", function (ev) {
+    var d = ev.target.data();
+    info.textContent = (d.kind === "alert" ? "Alerted payment: " : "Earlier payment: ") +
+      d.src + " → " + d.dst + ", " + at(d.minute) + ", " + money(d.amount) + " USD";
+  });
+  cy.on("tap", function (ev) { if (ev.target === cy) { info.textContent = HINT; } });
+
+  function restyle() { cy.style(style()); }
+  var mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  if (mq && mq.addEventListener) { mq.addEventListener("change", restyle); }
+  new MutationObserver(restyle).observe(document.documentElement,
+    { attributes: true, attributeFilter: ["data-theme"] });
+})();
+{% endraw %}
+</script>
+{% endblock %}

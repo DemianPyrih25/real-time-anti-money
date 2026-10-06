@@ -1,0 +1,818 @@
+{
+  "period": "val",
+  "days": [
+    7,
+    8
+  ],
+  "rows": 965524,
+  "rate_tag": "0p005",
+  "threshold": 0.022294557644632167,
+  "model_version": "export-6109de3b6779:07b6e09d58ca",
+  "champion": {
+    "source": "bundle",
+    "bundle_dir": "/data/models/serving"
+  },
+  "keys": {
+    "data": "data-92dd21b72722",
+    "rules": "rules-851aa23fb506",
+    "rules_engine": "rules_engine-1cdefaafac26",
+    "features": "features-1e538c068454",
+    "lgbm_tx": "lgbm_tx-875618a5b3f2",
+    "lgbm_graph": "lgbm_graph-abd44403c57a",
+    "eval": "eval-603c659874ad",
+    "export": "export-6109de3b6779",
+    "case_eval": "case_eval-b71354a9ccbd"
+  },
+  "parity": {
+    "rows": 965524,
+    "chunks": 5,
+    "mismatches": {
+      "features": 0,
+      "severities": 0,
+      "trunc": 0,
+      "rule_flags": 0,
+      "scores": 0,
+      "alerts": 0,
+      "alert_flags": 0,
+      "rules_fired": 0
+    },
+    "alerts": {
+      "stream": 4512,
+      "reference": 4512
+    },
+    "seconds": 1.8698225280000003,
+    "digest": {
+      "final_state_digest": "a82c819595ea4029b66bf531468663eb36f873ee174ee20956f77220a7f42928",
+      "clock": 11520,
+      "against": "test_boundary.snap",
+      "expected": "a82c819595ea4029b66bf531468663eb36f873ee174ee20956f77220a7f42928",
+      "boundary_clock": 11520,
+      "boundary_state_digest": "a82c819595ea4029b66bf531468663eb36f873ee174ee20956f77220a7f42928",
+      "ok": true
+    },
+    "ok": true
+  },
+  "packs": 4512,
+  "alerts": {
+    "alerts": 4512,
+    "true_positives": 730,
+    "false_positives": 3782,
+    "precision": 0.16179078014184398
+  },
+  "recall_by_typology": {
+    "FAN-OUT": {
+      "positives": 64,
+      "detected": 63,
+      "missed": 1,
+      "recall": 0.984375
+    },
+    "FAN-IN": {
+      "positives": 60,
+      "detected": 60,
+      "missed": 0,
+      "recall": 1.0
+    },
+    "CYCLE": {
+      "positives": 66,
+      "detected": 63,
+      "missed": 3,
+      "recall": 0.9545454545454546
+    },
+    "SCATTER-GATHER": {
+      "positives": 134,
+      "detected": 132,
+      "missed": 2,
+      "recall": 0.9850746268656716
+    },
+    "GATHER-SCATTER": {
+      "positives": 96,
+      "detected": 95,
+      "missed": 1,
+      "recall": 0.9895833333333334
+    },
+    "STACK": {
+      "positives": 150,
+      "detected": 146,
+      "missed": 4,
+      "recall": 0.9733333333333334
+    },
+    "BIPARTITE": {
+      "positives": 49,
+      "detected": 48,
+      "missed": 1,
+      "recall": 0.9795918367346939
+    },
+    "RANDOM": {
+      "positives": 38,
+      "detected": 36,
+      "missed": 2,
+      "recall": 0.9473684210526315
+    },
+    "OTHER": {
+      "positives": 379,
+      "detected": 87,
+      "missed": 292,
+      "recall": 0.22955145118733508
+    },
+    "ALL": {
+      "positives": 1036,
+      "detected": 730,
+      "missed": 306,
+      "recall": 0.7046332046332047
+    }
+  },
+  "false_positives": [
+    {
+      "id": 2273024,
+      "day": 8,
+      "time": "05:34",
+      "score": 0.8567824423360902,
+      "calibrated": 0.9772727272727273,
+      "typology": "RANDOM",
+      "rules_fired": [],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 3.167752535198983
+        },
+        {
+          "feature": "in_port",
+          "display": "2.708",
+          "contribution": 2.219341539154816
+        },
+        {
+          "feature": "v_in_gap",
+          "display": "37",
+          "contribution": 1.0501754144102715
+        },
+        {
+          "feature": "pair_is_new",
+          "display": "1",
+          "contribution": 1.0439996832587772
+        },
+        {
+          "feature": "u_out_gap",
+          "display": "4320",
+          "contribution": 0.7880647917389175
+        }
+      ],
+      "narrative": "On day 8 at 05:34, account 296379 (bank 0218050) sent 1,194.05 USD by ACH to account 312142 (bank 0222664). It crossed banks (0218050 to 0222664). The model scored it 0.8568 (calibrated probability 0.977), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+3.168); in_port = 2.708 (+2.219); v_in_gap = 37 (+1.050); pair_is_new = 1 (+1.044); u_out_gap = 4320 (+0.788); base value -10.744. No rule fired. Matched typology: RANDOM (the sender received from 1 and paid 0 distinct accounts in the previous day: a hop in a chain (u_in_uniq_1d = 1, u_out_uniq_1d = 0)). The causal subgraph shows 9 accounts and 26 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "GATHER-SCATTER"
+    },
+    {
+      "id": 3084284,
+      "day": 7,
+      "time": "07:59",
+      "score": 0.8182303106974396,
+      "calibrated": 0.9772727272727273,
+      "typology": "CYCLE",
+      "rules_fired": [
+        "round_trip"
+      ],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 3.8007676426821115
+        },
+        {
+          "feature": "cyc2_2d",
+          "display": "2",
+          "contribution": 2.656251703854794
+        },
+        {
+          "feature": "in_port",
+          "display": "1.792",
+          "contribution": 0.673893003280573
+        },
+        {
+          "feature": "payment_currency",
+          "display": "Saudi Riyal",
+          "contribution": 0.6624478399464417
+        },
+        {
+          "feature": "u_out_fmt_cheque_1d",
+          "display": "0",
+          "contribution": 0.5317551702768171
+        }
+      ],
+      "narrative": "On day 7 at 07:59, account 105156 (bank 0050528) sent 1,942.34 USD by ACH to account 229232 (bank 0148350). The sender paid 7,281.49 Saudi Riyal. It crossed banks (0050528 to 0148350). The model scored it 0.8182 (calibrated probability 0.977), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+3.801); cyc2_2d = 2 (+2.656); in_port = 1.792 (+0.674); payment_currency = Saudi Riyal (+0.662); u_out_fmt_cheque_1d = 0 (+0.532); base value -10.744. Rules fired: round_trip. Matched typology: CYCLE (the payment closes 3 temporal cycles back to the sender in the previous 2 days (cyc2_2d = 2, cyc3_2d = 1, cyc4_2d = 0); also consistent with RANDOM: the sender received from 1 and paid 1 distinct accounts in the previous day: a hop in a chain (u_in_uniq_1d = 1, u_out_uniq_1d = 1)). The causal subgraph shows 10 accounts and 37 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "FAN-OUT"
+    },
+    {
+      "id": 3538789,
+      "day": 7,
+      "time": "14:02",
+      "score": 0.8033553836489241,
+      "calibrated": 0.9772727272727273,
+      "typology": "RANDOM",
+      "rules_fired": [],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 3.3810782053444264
+        },
+        {
+          "feature": "log_amount_usd",
+          "display": "9.877",
+          "contribution": 1.4601639060528844
+        },
+        {
+          "feature": "in_port",
+          "display": "1.609",
+          "contribution": 1.3315778758483097
+        },
+        {
+          "feature": "pair_is_new",
+          "display": "1",
+          "contribution": 1.2125273385470063
+        },
+        {
+          "feature": "u_out_gap",
+          "display": "4320",
+          "contribution": 0.9147990733756429
+        }
+      ],
+      "narrative": "On day 7 at 14:02, account 126046 (bank 008798) sent 19,480.88 USD by ACH to account 139240 (bank 0111425). It crossed banks (008798 to 0111425). The model scored it 0.8034 (calibrated probability 0.977), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+3.381); log_amount_usd = 9.877 (+1.460); in_port = 1.609 (+1.332); pair_is_new = 1 (+1.213); u_out_gap = 4320 (+0.915); base value -10.744. No rule fired. Matched typology: RANDOM (the sender received from 1 and paid 0 distinct accounts in the previous day: a hop in a chain (u_in_uniq_1d = 1, u_out_uniq_1d = 0)). The causal subgraph shows 8 accounts and 32 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "STACK"
+    },
+    {
+      "id": 3383826,
+      "day": 7,
+      "time": "06:09",
+      "score": 0.7830916483170035,
+      "calibrated": 0.9772727272727273,
+      "typology": "OTHER",
+      "rules_fired": [],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 3.496003956176464
+        },
+        {
+          "feature": "log_amount_usd",
+          "display": "9.619",
+          "contribution": 1.6444284971398473
+        },
+        {
+          "feature": "pair_is_new",
+          "display": "1",
+          "contribution": 1.2306897499909746
+        },
+        {
+          "feature": "in_port",
+          "display": "1.609",
+          "contribution": 1.2277835689096428
+        },
+        {
+          "feature": "u_out_gap",
+          "display": "4320",
+          "contribution": 0.9434019153243162
+        }
+      ],
+      "narrative": "On day 7 at 06:09, account 36722 (bank 0017708) sent 15,042.75 USD by ACH to account 192125 (bank 0128684). It crossed banks (0017708 to 0128684). The model scored it 0.7831 (calibrated probability 0.977), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+3.496); log_amount_usd = 9.619 (+1.644); pair_is_new = 1 (+1.231); in_port = 1.609 (+1.228); u_out_gap = 4320 (+0.943); base value -10.744. No rule fired. Matched typology: OTHER (no typology rule fired: the alert matches no known laundering pattern). The causal subgraph shows 6 accounts and 15 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "STACK"
+    },
+    {
+      "id": 4196129,
+      "day": 8,
+      "time": "23:00",
+      "score": 0.7160602235294188,
+      "calibrated": 0.9166666666666666,
+      "typology": "OTHER",
+      "rules_fired": [],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 4.182992530345837
+        },
+        {
+          "feature": "pair_is_new",
+          "display": "1",
+          "contribution": 1.290139418414681
+        },
+        {
+          "feature": "u_out_fmt_ach_1d",
+          "display": "4",
+          "contribution": 0.8728131854709898
+        },
+        {
+          "feature": "v_in_gap",
+          "display": "4320",
+          "contribution": 0.5683052503965311
+        },
+        {
+          "feature": "u_out_fmt_cheque_1d",
+          "display": "0",
+          "contribution": 0.5007405159636903
+        }
+      ],
+      "narrative": "On day 8 at 23:00, account 171128 (bank 012) sent 1,101.87 USD by ACH to account 168748 (bank 011974). It crossed banks (012 to 011974). The model scored it 0.7161 (calibrated probability 0.917), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+4.183); pair_is_new = 1 (+1.290); u_out_fmt_ach_1d = 4 (+0.873); v_in_gap = 4320 (+0.568); u_out_fmt_cheque_1d = 0 (+0.501); base value -10.744. No rule fired. Matched typology: OTHER (no typology rule fired: the alert matches no known laundering pattern). The causal subgraph shows 19 accounts and 35 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "GATHER-SCATTER"
+    },
+    {
+      "id": 3450076,
+      "day": 7,
+      "time": "09:58",
+      "score": 0.6903159897084873,
+      "calibrated": 0.9166666666666666,
+      "typology": "OTHER",
+      "rules_fired": [],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 3.66319824962105
+        },
+        {
+          "feature": "log_amount_usd",
+          "display": "8.693",
+          "contribution": 1.244281419853505
+        },
+        {
+          "feature": "pair_is_new",
+          "display": "1",
+          "contribution": 1.145367613160099
+        },
+        {
+          "feature": "u_out_gap",
+          "display": "4320",
+          "contribution": 0.9124159260595955
+        },
+        {
+          "feature": "in_port",
+          "display": "1.386",
+          "contribution": 0.8651130529756168
+        }
+      ],
+      "narrative": "On day 7 at 09:58, account 170212 (bank 012) sent 5,962.14 USD by ACH to account 46002 (bank 00220). It crossed banks (012 to 00220). The model scored it 0.6903 (calibrated probability 0.917), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+3.663); log_amount_usd = 8.693 (+1.244); pair_is_new = 1 (+1.145); u_out_gap = 4320 (+0.912); in_port = 1.386 (+0.865); base value -10.744. No rule fired. Matched typology: OTHER (no typology rule fired: the alert matches no known laundering pattern). The causal subgraph shows 11 accounts and 28 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "STACK"
+    },
+    {
+      "id": 3971634,
+      "day": 8,
+      "time": "11:57",
+      "score": 0.6819055195107347,
+      "calibrated": 0.88,
+      "typology": "OTHER",
+      "rules_fired": [],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 4.429172127665125
+        },
+        {
+          "feature": "pair_is_new",
+          "display": "1",
+          "contribution": 1.6117024910628033
+        },
+        {
+          "feature": "log_amount_usd",
+          "display": "9.079",
+          "contribution": 1.0588483536260969
+        },
+        {
+          "feature": "v_in_gap",
+          "display": "4320",
+          "contribution": 0.6989078656303783
+        },
+        {
+          "feature": "u_out_fmt_ach_1d",
+          "display": "2",
+          "contribution": 0.5133275254223715
+        }
+      ],
+      "narrative": "On day 8 at 11:57, account 290314 (bank 021575) sent 8,771.82 USD by ACH to account 219379 (bank 01420). It crossed banks (021575 to 01420). The model scored it 0.6819 (calibrated probability 0.880), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+4.429); pair_is_new = 1 (+1.612); log_amount_usd = 9.079 (+1.059); v_in_gap = 4320 (+0.699); u_out_fmt_ach_1d = 2 (+0.513); base value -10.744. No rule fired. Matched typology: OTHER (no typology rule fired: the alert matches no known laundering pattern). The causal subgraph shows 3 accounts and 11 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "STACK"
+    },
+    {
+      "id": 3893710,
+      "day": 8,
+      "time": "07:42",
+      "score": 0.676684174482353,
+      "calibrated": 0.88,
+      "typology": "CYCLE",
+      "rules_fired": [
+        "round_trip"
+      ],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 3.298743198700494
+        },
+        {
+          "feature": "log_amount_usd",
+          "display": "9.939",
+          "contribution": 1.3967213343243217
+        },
+        {
+          "feature": "in_port",
+          "display": "1.609",
+          "contribution": 1.137777444501581
+        },
+        {
+          "feature": "cyc2_2d",
+          "display": "1",
+          "contribution": 0.9969547694773249
+        },
+        {
+          "feature": "u_out_gap",
+          "display": "4320",
+          "contribution": 0.7977609431755357
+        }
+      ],
+      "narrative": "On day 8 at 07:42, account 105833 (bank 00513) sent 20,715.45 USD by ACH to account 23992 (bank 001457). It crossed banks (00513 to 001457). The model scored it 0.6767 (calibrated probability 0.880), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+3.299); log_amount_usd = 9.939 (+1.397); in_port = 1.609 (+1.138); cyc2_2d = 1 (+0.997); u_out_gap = 4320 (+0.798); base value -10.744. Rules fired: round_trip. Matched typology: CYCLE (the payment closes 1 temporal cycle back to the sender in the previous 2 days (cyc2_2d = 1, cyc3_2d = 0, cyc4_2d = 0); also consistent with RANDOM: the sender received from 2 and paid 0 distinct accounts in the previous day: a hop in a chain (u_in_uniq_1d = 2, u_out_uniq_1d = 0)). The causal subgraph shows 8 accounts and 14 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "STACK"
+    },
+    {
+      "id": 3510673,
+      "day": 7,
+      "time": "12:41",
+      "score": 0.6551726508623782,
+      "calibrated": 0.88,
+      "typology": "OTHER",
+      "rules_fired": [],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 3.5920847592834546
+        },
+        {
+          "feature": "log_amount_usd",
+          "display": "9.542",
+          "contribution": 1.6217139106600988
+        },
+        {
+          "feature": "pair_is_new",
+          "display": "1",
+          "contribution": 1.225000190839356
+        },
+        {
+          "feature": "u_out_gap",
+          "display": "4320",
+          "contribution": 0.9778649121902804
+        },
+        {
+          "feature": "in_port",
+          "display": "1.386",
+          "contribution": 0.8653534939401775
+        }
+      ],
+      "narrative": "On day 7 at 12:41, account 57598 (bank 0025749) sent 13,937.25 USD by ACH to account 45363 (bank 0021813). It crossed banks (0025749 to 0021813). The model scored it 0.6552 (calibrated probability 0.880), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+3.592); log_amount_usd = 9.542 (+1.622); pair_is_new = 1 (+1.225); u_out_gap = 4320 (+0.978); in_port = 1.386 (+0.865); base value -10.744. No rule fired. Matched typology: OTHER (no typology rule fired: the alert matches no known laundering pattern). The causal subgraph shows 4 accounts and 15 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "STACK"
+    },
+    {
+      "id": 2313422,
+      "day": 8,
+      "time": "20:22",
+      "score": 0.6399573626208617,
+      "calibrated": 0.88,
+      "typology": "BIPARTITE",
+      "rules_fired": [],
+      "drivers": [
+        {
+          "feature": "payment_format",
+          "display": "ACH",
+          "contribution": 3.8565752229370616
+        },
+        {
+          "feature": "in_port",
+          "display": "1.609",
+          "contribution": 1.1687850105344655
+        },
+        {
+          "feature": "pair_is_new",
+          "display": "1",
+          "contribution": 0.8200979445257612
+        },
+        {
+          "feature": "u_out_fmt_ach_1d",
+          "display": "2",
+          "contribution": 0.6725967405142521
+        },
+        {
+          "feature": "log_amount_usd",
+          "display": "16",
+          "contribution": 0.5367440607373377
+        }
+      ],
+      "narrative": "On day 8 at 20:22, account 294489 (bank 021749) sent 8,885,158.80 USD by ACH to account 21797 (bank 001412). It crossed banks (021749 to 001412). The model scored it 0.6400 (calibrated probability 0.880), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+3.857); in_port = 1.609 (+1.169); pair_is_new = 1 (+0.820); u_out_fmt_ach_1d = 2 (+0.673); log_amount_usd = 16 (+0.537); base value -10.744. No rule fired. Matched typology: BIPARTITE (the sender paid 2 and the receiver was paid by 2 distinct accounts in the previous day: a many-to-many link (u_out_uniq_1d = 2, v_in_uniq_1d = 2)). The causal subgraph shows 28 accounts and 63 earlier payments from the 3 days before the alert.",
+      "typology_val_matcher": "GATHER-SCATTER"
+    }
+  ],
+  "false_positive_typology": {
+    "FAN-OUT": 7,
+    "FAN-IN": 60,
+    "CYCLE": 175,
+    "SCATTER-GATHER": 144,
+    "GATHER-SCATTER": 81,
+    "STACK": 506,
+    "BIPARTITE": 0,
+    "RANDOM": 28,
+    "OTHER": 2781
+  },
+  "typology_match": {
+    "model": "tree",
+    "compare": {
+      "rows": 730,
+      "majority": {
+        "label": "STACK",
+        "accuracy": 0.2
+      },
+      "tree_cv": 0.510958904109589,
+      "tree_train": 0.584931506849315,
+      "rules_tuned": 0.21095890410958903,
+      "rules_at_config": 0.1506849315068493,
+      "cv_folds": 5,
+      "note": "tree_cv is the out-of-fold accuracy of the same tree settings (stratified k-fold on these rows, not grouped by attempt, so optimistic; test is the measure); tree_train and rules_tuned are in-sample (fitted or tuned on these rows)"
+    },
+    "tree": {
+      "file": "typology_tree_val.json",
+      "copy_to": "configs/typology_tree.json",
+      "params": {
+        "max_depth": 5,
+        "min_samples_leaf": 10,
+        "seed": 0
+      },
+      "depth": 5,
+      "leaves": 21,
+      "inputs": [
+        "u_out_newcp_1d",
+        "g_dst_in_deg",
+        "log_amount_usd",
+        "v_out_uniq_3d",
+        "g_n_nodes",
+        "u_inflow_12h",
+        "u_in_gap",
+        "v_in_same_fmt_1d",
+        "v_in_mean_3d",
+        "v_in_max_1d",
+        "u_out_gap",
+        "u_in_uniq_3d",
+        "u_out_fmt_cheque_1d",
+        "u_in_sum_1d",
+        "u_out_std_1d",
+        "u_out_mean_3d",
+        "u_out_uniq_1d"
+      ],
+      "train_accuracy": 0.584931506849315,
+      "cv_accuracy": 0.510958904109589,
+      "cv_folds": 5,
+      "importances": [
+        {
+          "feature": "u_in_uniq_3d",
+          "importance": 0.19562059824855518
+        },
+        {
+          "feature": "u_out_newcp_1d",
+          "importance": 0.15784840887277327
+        },
+        {
+          "feature": "g_dst_in_deg",
+          "importance": 0.1346123828044937
+        },
+        {
+          "feature": "log_amount_usd",
+          "importance": 0.12445840705778259
+        },
+        {
+          "feature": "v_in_same_fmt_1d",
+          "importance": 0.08551735716383313
+        },
+        {
+          "feature": "v_in_mean_3d",
+          "importance": 0.06930412703215283
+        },
+        {
+          "feature": "v_out_uniq_3d",
+          "importance": 0.04277140910356585
+        },
+        {
+          "feature": "u_inflow_12h",
+          "importance": 0.04180066505790397
+        },
+        {
+          "feature": "g_n_nodes",
+          "importance": 0.027416256545961873
+        },
+        {
+          "feature": "u_out_fmt_cheque_1d",
+          "importance": 0.02189731717778262
+        }
+      ]
+    },
+    "tuned": {
+      "cycle_min": 1,
+      "sg_min": 1,
+      "gs_min": 2,
+      "fan_out_min": 3,
+      "fan_in_min": 3,
+      "stack_pt_tol": 0.3,
+      "bipartite_min": 2,
+      "random_in_min": null,
+      "random_out_max": 1
+    },
+    "accuracy": {
+      "n": 730,
+      "correct": 154,
+      "accuracy": 0.21095890410958903,
+      "macro_recall": 0.2086843698812183,
+      "majority": {
+        "label": "STACK",
+        "accuracy": 0.2
+      },
+      "per_typology": {
+        "FAN-OUT": {
+          "support": 63,
+          "predicted": 81,
+          "correct": 8,
+          "recall": 0.12698412698412698,
+          "precision": 0.09876543209876543
+        },
+        "FAN-IN": {
+          "support": 60,
+          "predicted": 74,
+          "correct": 24,
+          "recall": 0.4,
+          "precision": 0.32432432432432434
+        },
+        "CYCLE": {
+          "support": 63,
+          "predicted": 40,
+          "correct": 5,
+          "recall": 0.07936507936507936,
+          "precision": 0.125
+        },
+        "SCATTER-GATHER": {
+          "support": 132,
+          "predicted": 3,
+          "correct": 2,
+          "recall": 0.015151515151515152,
+          "precision": 0.6666666666666666
+        },
+        "GATHER-SCATTER": {
+          "support": 95,
+          "predicted": 129,
+          "correct": 29,
+          "recall": 0.30526315789473685,
+          "precision": 0.2248062015503876
+        },
+        "STACK": {
+          "support": 146,
+          "predicted": 54,
+          "correct": 10,
+          "recall": 0.0684931506849315,
+          "precision": 0.18518518518518517
+        },
+        "BIPARTITE": {
+          "support": 48,
+          "predicted": 6,
+          "correct": 1,
+          "recall": 0.020833333333333332,
+          "precision": 0.16666666666666666
+        },
+        "RANDOM": {
+          "support": 36,
+          "predicted": 0,
+          "correct": 0,
+          "recall": 0.0,
+          "precision": null
+        },
+        "OTHER": {
+          "support": 87,
+          "predicted": 343,
+          "correct": 75,
+          "recall": 0.8620689655172413,
+          "precision": 0.21865889212827988
+        }
+      },
+      "confusion": {
+        "FAN-OUT": {
+          "FAN-OUT": 8,
+          "FAN-IN": 0,
+          "CYCLE": 5,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 35,
+          "STACK": 0,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 15
+        },
+        "FAN-IN": {
+          "FAN-OUT": 4,
+          "FAN-IN": 24,
+          "CYCLE": 2,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 0,
+          "STACK": 0,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 30
+        },
+        "CYCLE": {
+          "FAN-OUT": 3,
+          "FAN-IN": 0,
+          "CYCLE": 5,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 5,
+          "STACK": 22,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 28
+        },
+        "SCATTER-GATHER": {
+          "FAN-OUT": 20,
+          "FAN-IN": 33,
+          "CYCLE": 7,
+          "SCATTER-GATHER": 2,
+          "GATHER-SCATTER": 32,
+          "STACK": 0,
+          "BIPARTITE": 2,
+          "RANDOM": 0,
+          "OTHER": 36
+        },
+        "GATHER-SCATTER": {
+          "FAN-OUT": 16,
+          "FAN-IN": 12,
+          "CYCLE": 8,
+          "SCATTER-GATHER": 1,
+          "GATHER-SCATTER": 29,
+          "STACK": 1,
+          "BIPARTITE": 2,
+          "RANDOM": 0,
+          "OTHER": 26
+        },
+        "STACK": {
+          "FAN-OUT": 19,
+          "FAN-IN": 2,
+          "CYCLE": 7,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 17,
+          "STACK": 10,
+          "BIPARTITE": 1,
+          "RANDOM": 0,
+          "OTHER": 90
+        },
+        "BIPARTITE": {
+          "FAN-OUT": 7,
+          "FAN-IN": 0,
+          "CYCLE": 1,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 3,
+          "STACK": 2,
+          "BIPARTITE": 1,
+          "RANDOM": 0,
+          "OTHER": 34
+        },
+        "RANDOM": {
+          "FAN-OUT": 2,
+          "FAN-IN": 1,
+          "CYCLE": 2,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 6,
+          "STACK": 16,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 9
+        },
+        "OTHER": {
+          "FAN-OUT": 2,
+          "FAN-IN": 2,
+          "CYCLE": 3,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 2,
+          "STACK": 3,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 75
+        }
+      },
+      "model": "rules",
+      "params": {
+        "cycle_min": 1,
+        "sg_min": 1,
+        "gs_min": 2,
+        "fan_out_min": 3,
+        "fan_in_min": 3,
+        "stack_pt_tol": 0.3,
+        "bipartite_min": 2,
+        "random_in_min": null,
+        "random_out_max": 1
+      }
+    },
+    "report": "typology_match_val.json"
+  },
+  "seconds": {
+    "inputs": 0.2732499089999987,
+    "stream": 382.427440445,
+    "parity_checks": 1.8698225280000003,
+    "labels": 0.27018574599998146
+  }
+}

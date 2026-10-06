@@ -45,6 +45,14 @@ from aml.eval.typology import (
     recall_by_typology,
 )
 from aml.io import read_json, write_json_atomic, write_text_atomic
+from aml.models.gnn import (
+    COMPARISON_MODELS,
+    FAITHFUL_MODEL,
+    GUARD_FIELDS,
+    LOOKAHEAD_D10_MODEL,
+    add_guard,
+    empty_guard,
+)
 from aml.paths import DataPaths
 
 VAL_SPLIT = "val_late"
@@ -432,6 +440,9 @@ def evaluate(
 
 
 # Model metrics with a bootstrap CI (primary view, headline rate), and the paired differences.
+# M3 appends literature.f1_argmax (F1 at score >= 0.5): an extra statistic on the same
+# replicates, so every other key keeps its value (replicates depend only on strata, clusters, B
+# and the seed).
 BOOT_MODEL_KEYS = (
     "a.precision",
     "a.recall",
@@ -443,6 +454,7 @@ BOOT_MODEL_KEYS = (
     "c.model_same_volume.recall",
     "literature.f1_thr",
     "literature.pr_auc",
+    "literature.f1_argmax",
 )
 BOOT_DIFFS = {
     "a.recall_minus_rules": ("a.recall", "rules.recall"),
@@ -450,7 +462,23 @@ BOOT_DIFFS = {
     "c.union_minus_model_same_volume": ("c.union.recall", "c.model_same_volume.recall"),
 }
 # Paired model - model differences (every pair, later model minus earlier), same replicates.
-MODEL_DIFF_KEYS = ("a.recall", "a.precision", "b.recall", "literature.f1_thr", "literature.pr_auc")
+# results.md shows the M2 columns unless GNN models are evaluated (M2 output stays byte-identical).
+M2_MODEL_DIFF_KEYS = (
+    "a.recall",
+    "a.precision",
+    "b.recall",
+    "literature.f1_thr",
+    "literature.pr_auc",
+)
+MODEL_DIFF_KEYS = (*M2_MODEL_DIFF_KEYS, "literature.f1_argmax")
+MODEL_DIFF_HEADERS = {
+    "a.recall": "Recall (a), pp",
+    "a.precision": "Precision (a), pp",
+    "b.recall": "Recall (b), pp",
+    "literature.f1_thr": "F1 @ val_late-best threshold, pp",
+    "literature.pr_auc": "PR-AUC, pp",
+    "literature.f1_argmax": "F1 @ 0.5 (argmax), pp",
+}
 
 
 def _interval(samples: np.ndarray, level: float) -> dict[str, float | int]:
@@ -509,6 +537,7 @@ def _bootstrap_primary(
             "c.union": rs.prf(union),
             "c.model_same_volume": rs.top_k(s, rs.linear(union)),
             "literature.f1": rs.prf(s >= thr_f1),
+            "literature.argmax": rs.prf(s >= ARGMAX_THRESHOLD),
         }
         ap = rs.pr_auc(s)
 
@@ -518,6 +547,7 @@ def _bootstrap_primary(
                 for k, v in f(counts).items():
                     out[f"{p}.{k}"] = v
             out["literature.f1_thr"] = out.pop("literature.f1.f1")
+            out["literature.f1_argmax"] = out.pop("literature.argmax.f1")
             out["literature.pr_auc"] = ap(counts)
             return out
 
@@ -680,9 +710,24 @@ def _label(results: dict, name: str) -> str:
     return f"{name} (1 seed, no std)" if n == 1 else f"{name} ({n} seeds)"
 
 
+def _has_gnn(results: dict) -> bool:
+    """GNN models were evaluated (M3): only then does results.md differ from M2's layout."""
+    return bool(results.get("gnn"))
+
+
+def _models_for(results: dict, view: str) -> list[str]:
+    """The models rendered in `view`'s tables (meta.model_views; every model by default).
+
+    gnn_lookahead_d10 is evaluated on every view (its tail rows carry causal-bound scores, so
+    every score is finite) but rendered on the primary period only."""
+    mv = results["meta"].get("model_views") or {}
+    return [m for m in results["meta"]["models"] if view in mv.get(m, VIEWS)]
+
+
 def _ops_rows(results: dict, view: str, with_ci: bool) -> list[list[str]]:
     head = results["meta"]["headline_tag"]
     vr = results["views"][view]
+    shown = set(_models_for(results, view))
     boot = results.get("bootstrap") if with_ci else None
     rb = boot["rules"] if boot else None
     r = vr["rules"]["points"][head]
@@ -700,6 +745,8 @@ def _ops_rows(results: dict, view: str, with_ci: bool) -> list[list[str]]:
         ]
     ]
     for name, m in vr["models"].items():
+        if name not in shown:
+            continue
         mb = boot["models"].get(name) if boot else None
         lit = m["literature"]
         points = [
@@ -808,18 +855,12 @@ def render_markdown(results: dict) -> str:
         )
         L += [""]
         if boot.get("model_diffs"):
+            diff_keys = MODEL_DIFF_KEYS if _has_gnn(results) else M2_MODEL_DIFF_KEYS
             L += ["### Paired model differences (primary)", ""]
             L += _table(
+                ["Models", *(MODEL_DIFF_HEADERS[k] for k in diff_keys)],
                 [
-                    "Models",
-                    "Recall (a), pp",
-                    "Precision (a), pp",
-                    "Recall (b), pp",
-                    "F1 @ val_late-best threshold, pp",
-                    "PR-AUC, pp",
-                ],
-                [
-                    [pair] + [_pct(d[k].get("point")) + _ci(d, k) for k in MODEL_DIFF_KEYS]
+                    [pair] + [_pct(d[k].get("point")) + _ci(d, k) for k in diff_keys]
                     for pair, d in boot["model_diffs"].items()
                 ],
             )
@@ -862,14 +903,15 @@ def render_markdown(results: dict) -> str:
     L += ["## Recall per typology at (a)", ""]
     for v in VIEWS:
         vr = results["views"][v]
+        vm = _models_for(results, v)
         rows = []
         for t in (*TYPOLOGIES, ALL):
             rt = vr["rules"]["typology"][t]
             row = [t, _num(rt["positives"]), _pct(rt["recall"])]
-            row += [_pct(vr["models"][n]["typology"][t]["recall"]) for n in models]
+            row += [_pct(vr["models"][n]["typology"][t]["recall"]) for n in vm]
             rows.append(row)
         L += [f"**{v}** ({_view_title(results, v)})", ""]
-        L += _table(["Typology", "Positives", "Rules %", *[f"{n} %" for n in models]], rows)
+        L += _table(["Typology", "Positives", "Rules %", *[f"{n} %" for n in vm]], rows)
         L += [""]
 
     L += [
@@ -883,6 +925,7 @@ def render_markdown(results: dict) -> str:
     ]
     for v in VIEWS:
         vr = results["views"][v]
+        vm = _models_for(results, v)
         rows = []
         for t in (*TYPOLOGIES[:-1], ALL):
             ra = vr["rules"]["attempts"][t]
@@ -892,12 +935,12 @@ def render_markdown(results: dict) -> str:
                 _pct(ra["detection_rate"]),
                 _num(ra["median_minutes_to_first_alert"]),
             ]
-            for n in models:
+            for n in vm:
                 ma = vr["models"][n]["attempts"][t]
                 row += [_pct(ma["detection_rate"]), _num(ma["median_minutes_to_first_alert"])]
             rows.append(row)
         hdr = ["Typology", "Attempts", "Rules detected %", "Rules minutes"]
-        for n in models:
+        for n in vm:
             hdr += [f"{n} detected %", f"{n} minutes"]
         L += [f"**{v}**", ""] + _table(hdr, rows) + [""]
 
@@ -909,18 +952,18 @@ def render_markdown(results: dict) -> str:
     ]
     for v in VIEWS:
         vr = results["views"][v]
+        vm = _models_for(results, v)
         rows = []
         for g in ("seen", "unseen"):
             rm = vr["rules"]["memorisation"][g]
             row = [g, _num(rm["positives"]), _pct(rm["recall"])]
-            row += [_pct(vr["models"][n]["memorisation"][g]["recall"]) for n in models]
+            row += [_pct(vr["models"][n]["memorisation"][g]["recall"]) for n in vm]
             rows.append(row)
         L += [f"**{v}**", ""]
-        L += _table(
-            ["Positives", "Count", "Rules recall %", *[f"{n} recall %" for n in models]], rows
-        )
+        L += _table(["Positives", "Count", "Rules recall %", *[f"{n} recall %" for n in vm]], rows)
         L += [""]
 
+    L += _gnn_sections(results)
     L += _validation_section(results)
 
     lo, hi = meta["views"]["full"]["days"]
@@ -966,15 +1009,17 @@ LITERATURE_HEADER = [
 def _literature_rows(results: dict, view: str, with_ci: bool) -> list[list[str]]:
     boot = results.get("bootstrap") if with_ci else None
     mb_all = boot["models"] if boot else {}
+    # M2 rendered no CI for F1 @ 0.5; keep its layout unless GNN models are evaluated.
+    argmax_ci = _has_gnn(results)
     rows = [[rules_label(results)] + [NA] * (len(LITERATURE_HEADER) - 1)]
-    for name in results["meta"]["models"]:
+    for name in _models_for(results, view):
         lit = results["views"][view]["models"][name]["literature"]
         mb = mb_all.get(name)
         rows.append(
             [
                 _label(results, name),
                 _pct(lit["f1_thr"]) + _ci(mb, "literature.f1_thr"),
-                _pct(lit["f1_argmax"]),
+                _pct(lit["f1_argmax"]) + (_ci(mb, "literature.f1_argmax") if argmax_ci else ""),
                 _pct(lit["precision_argmax"]),
                 _pct(lit["recall_argmax"]),
                 _num(lit["alerts_argmax"]),
@@ -1485,6 +1530,668 @@ def _validation_section(results: dict) -> list[str]:
     return L
 
 
+# --------------------------------------------------------------------------- M3 GNN sections
+
+# The pre-registered verdict (M3 spec §13.4), per metric of d = winner_pair[0] - winner_pair[1].
+OUTCOMES = ("gnn", "lgbm", "tie")
+METRIC_LABELS = {
+    "a.recall": "recall (a)",
+    "a.precision": "precision (a)",
+    "b.recall": "recall (b)",
+    "literature.f1_thr": "F1 @ val_late-best threshold",
+    "literature.f1_argmax": "F1 @ 0.5 (argmax)",
+    "literature.pr_auc": "PR-AUC",
+}
+MODEL_PHRASES = {"gnn_causal": "the causal GNN", "lgbm_graph": "LightGBM-graph"}
+CAUSAL_MODEL, LOOKAHEAD_MODEL = "gnn_causal", "gnn_lookahead"
+CONVERGENCE_WINDOW = 5  # best epoch among the last 5 epochs run: "may not have converged"
+SUMMARY_KEYS = (
+    "protocol",
+    "seeds",
+    "set_key",
+    "final",
+    "report_hash",
+    "best_val_ap_mean",
+    "best_val_ap_std",
+    "best_val_ap_mean_fresh",
+    "best_val_f1",
+    "best_epoch",
+    "epochs_run",
+    "max_epochs",
+    "epoch_cap",
+    "batch_size",
+    "future_share",
+    "sampled_share",
+    "scored_splits",
+    "test_bounds",
+    "gpu",
+    "gpu_seconds",
+    "cores",
+    "memory_mib",
+    "gnn_version",
+    "features_digest",
+    "data_version",
+)
+
+
+def _model_phrase(name: str) -> str:
+    return MODEL_PHRASES.get(name, name)
+
+
+def check_report_hash(summaries: dict[str, dict], current: str) -> None:
+    """Refuse when a --final set recorded another hash of the pre-registered `report` rules than
+    the current configs/gnn.yaml: no forking paths after the test touch (M3 spec §13.4)."""
+    bad = {
+        name: s.get("report_hash")
+        for name, s in summaries.items()
+        if (s.get("final") or s.get("report_hash") is not None) and s.get("report_hash") != current
+    }
+    if bad:
+        raise ValueError(
+            f"the pre-registered `report` rules changed after a --final run: recorded {bad}, "
+            f"configs/gnn.yaml now hashes to {current!r}. Restore the `report:` section the "
+            "--final sets were trained under."
+        )
+
+
+def summary_guard(summary: dict) -> dict[str, int] | None:
+    """A summary's as-of guard totals (GUARD_FIELDS), summed over its splits; None if absent."""
+    g = summary.get("guard")
+    if not isinstance(g, dict) or not g:
+        return None
+    if all(f in g and not isinstance(g[f], dict) for f in GUARD_FIELDS):
+        return {f: int(g[f]) for f in GUARD_FIELDS}
+    total = empty_guard()
+    for split_guard in g.values():
+        total = add_guard(total, split_guard)
+    return total
+
+
+def guard_line(name: str, summary: dict) -> str:
+    """'<model>: 0 violations over N sampled edges; 0 target hits' (README evidence)."""
+    g = summary_guard(summary)
+    if g is None:
+        return f"{name}: no guard totals in its summary.json."
+    edges, viol = g["edges_checked"], g["violations"]
+    if name == FAITHFUL_MODEL:
+        return (
+            f"{name} (snapshot guard): {viol:,} violations over {edges:,} sampled edges (every "
+            "sampled rank <= its snapshot's last rank; the target stays in its snapshot, as "
+            "published)."
+        )
+    hits = g["target_hits"]
+    text = f"{name}: {viol:,} violations over {edges:,} sampled edges; {hits:,} target hits"
+    if g["dropped_target_copies"]:
+        text += f" ({g['dropped_target_copies']:,} sampled copies of the target dropped)"
+    return text + "."
+
+
+def _agg_at(model: dict, key: str, head: str) -> dict | None:
+    """The per-seed aggregate {mean, std, per_seed, n_defined} of a dotted metric key."""
+    part, metric = key.split(".", 1)
+    node = model[part][head] if part in ("a", "b") else model[part]
+    return node.get(metric)
+
+
+def _negated(iv: dict) -> dict:
+    # 0.0 - v, not -v: an exact zero stays 0.0 (not -0.0) in results.md.
+    neg = {k: (None if v is None else 0.0 - v) for k, v in iv.items() if k in ("point", "lo", "hi")}
+    return {
+        "point": neg.get("point"),
+        "lo": neg.get("hi"),
+        "hi": neg.get("lo"),
+        "undefined": iv.get("undefined", 0),
+    }
+
+
+def _pair_diff(results: dict, a: str, b: str, key: str) -> dict:
+    """a - b of a paired-difference metric: the bootstrap's "a - b" entry, or "b - a" with the
+    point negated and the CI bounds negated and swapped. Without a bootstrap, the point only."""
+    md = (results.get("bootstrap") or {}).get("model_diffs") or {}
+    if f"{a} - {b}" in md and key in md[f"{a} - {b}"]:
+        iv = dict(md[f"{a} - {b}"][key])
+    elif f"{b} - {a}" in md and key in md[f"{b} - {a}"]:
+        iv = _negated(md[f"{b} - {a}"][key])
+    else:
+        head = results["meta"]["headline_tag"]
+        pv = results["views"]["primary"]["models"]
+        xa, xb = (_val(_agg_at(pv[m], key, head)) for m in (a, b))
+        iv = {"point": _minus(xa, xb), "lo": None, "hi": None, "undefined": 0}
+    lo, hi = iv.get("lo"), iv.get("hi")
+    iv["significant"] = lo is not None and hi is not None and (lo > 0 or hi < 0)
+    return iv
+
+
+def lookahead_gap(results: dict, summaries: dict[str, dict], report_cfg: dict) -> dict | None:
+    """Step 1 of the look-ahead gap on the primary period (M3 spec §13.2.3): per gap metric the
+    causal and look-ahead (test bound end, d10) seed means, gap end - causal, gap d10 - causal and
+    the tail effect end - d10 (= -(d10 - end)), all from the paired bootstrap. None unless all
+    three models were evaluated."""
+    names = (CAUSAL_MODEL, LOOKAHEAD_MODEL, LOOKAHEAD_D10_MODEL)
+    if not all(n in results["meta"]["models"] for n in names):
+        return None
+    causal, end, d10 = names
+    head = results["meta"]["headline_tag"]
+    pv = results["views"]["primary"]["models"]
+    rows = {}
+    for key in report_cfg["gap_metrics"]:
+        rows[key] = {
+            "causal": _agg_at(pv[causal], key, head),
+            "end": _agg_at(pv[end], key, head),
+            "d10": _agg_at(pv[d10], key, head),
+            "gap_end": _pair_diff(results, end, causal, key),
+            "gap_d10": _pair_diff(results, d10, causal, key),
+            "tail": _pair_diff(results, end, d10, key),
+        }
+
+    def val_ap(name: str) -> dict:
+        """The set's mean and the seeds' sample std (ddof 1, None below 2 seeds: the
+        convention of every other ± in results.md), + the mean over seeds other than the HPO
+        model seed (causal seed 0 repeats the HPO-selected trial)."""
+        s = summaries.get(name) or {}
+        vals = [
+            float(v["best_val_ap"])
+            for v in (s.get("per_seed") or {}).values()
+            if isinstance(v, dict) and v.get("best_val_ap") is not None
+        ]
+        return {
+            "mean": s.get("best_val_ap_mean"),
+            "std": float(np.std(vals, ddof=1)) if len(vals) > 1 else None,
+            "n_seeds": len(vals),
+            "mean_fresh": s.get("best_val_ap_mean_fresh"),
+        }
+
+    # future share: the `end` set's splits, + the d10 test pass from the d10 summary
+    share = dict((summaries.get(end) or {}).get("future_share") or {})
+    d10_share = (summaries.get(d10) or {}).get("future_share") or {}
+    if "test_d10" in d10_share:
+        share["test_d10"] = d10_share["test_d10"]
+    n_seeds = int(results["meta"]["models"][end]["n_seeds"])
+    return {
+        "rate_tag": head,
+        "metrics": rows,
+        "val_early_pr_auc": {"causal": val_ap(causal), "lookahead": val_ap(end)},
+        "future_share": share or None,
+        "n_seeds_lookahead": n_seeds,
+        "test_sampling_only": n_seeds == 1,
+    }
+
+
+def faithful_section(
+    eval_df: pl.DataFrame,
+    scores: pl.DataFrame | Path,
+    summary: dict,
+    report_cfg: dict,
+    *,
+    views: dict[str, tuple[int, int]] | None = None,
+) -> dict:
+    """The faithful Multi-GNN reproduction (no bootstrap; never in the model comparison).
+
+    F1 / precision / recall at argmax (score >= 0.5) on the test rows of each view: on sampled
+    targets (the published protocol) and on all targets (ours: unsampled targets scored through
+    the virtual target edge). Verdict "reproduced" iff the full view's sampled-target F1 (in %)
+    lies in report_cfg.reproduced_band; "may not have converged" if the best epoch is among the
+    last CONVERGENCE_WINDOW epochs run. views: {"full": (lo, hi), "primary": (lo, hi)} test days
+    (default: full = every test row)."""
+    sc = scores if isinstance(scores, pl.DataFrame) else pl.read_parquet(scores)
+    cols = [c for c in sc.columns if _SCORE_COL.match(c)]
+    if len(cols) != 1 or "sampled" not in sc.columns:
+        raise ValueError(
+            f"faithful scores need one score_s<seed> column and `sampled`, got {sc.columns}"
+        )
+    col = cols[0]
+    test = eval_df.filter(pl.col("split") == TEST_SPLIT).select("row_id", "day", "y")
+    j = test.join(
+        sc.select("row_id", col, "sampled"), on="row_id", how="left", maintain_order="left"
+    )
+    if j[col].null_count() or j["sampled"].null_count():
+        raise ValueError("faithful scores: missing values for test rows")
+    s = j[col].to_numpy().astype(np.float64)
+    if not np.isfinite(s).all():
+        raise ValueError("faithful scores must be finite")
+    y = j["y"].to_numpy().astype(np.int8)
+    sampled = j["sampled"].to_numpy().astype(bool)
+    day = j["day"].to_numpy().astype(np.int64)
+    if views is None:
+        views = {"full": (int(day.min()), int(day.max())) if day.size else (0, -1)}
+    out_views = {}
+    for v, (lo, hi) in views.items():
+        mask = (day >= lo) & (day <= hi)
+        smp = mask & sampled
+        out_views[v] = {
+            "days": [int(lo), int(hi)],
+            "sampled": {
+                **prf_at_threshold(y[smp], s[smp], ARGMAX_THRESHOLD),
+                "rows": int(smp.sum()),
+            },
+            "all": {
+                **prf_at_threshold(y[mask], s[mask], ARGMAX_THRESHOLD),
+                "rows": int(mask.sum()),
+            },
+            "sampled_share": float(sampled[mask].mean()) if mask.any() else math.nan,
+        }
+    f1 = 100.0 * out_views["full"]["sampled"]["f1"]
+    lo_b, hi_b = (float(x) for x in report_cfg["reproduced_band"])
+    if not math.isfinite(f1):
+        verdict, miss = "undefined", None
+    elif lo_b <= f1 <= hi_b:
+        verdict, miss = "reproduced", 0.0
+    else:
+        verdict, miss = "not reproduced", (f1 - lo_b if f1 < lo_b else f1 - hi_b)
+    best, run = summary.get("best_epoch"), summary.get("epochs_run")
+    return {
+        "views": out_views,
+        "f1_sampled_pct": f1,
+        "band": [lo_b, hi_b],
+        "published_f1": report_cfg["published_f1"],
+        "published_std": report_cfg["published_std"],
+        "verdict": verdict,
+        "miss_pp": miss,
+        "epochs_run": run,
+        "max_epochs": summary.get("max_epochs"),
+        "epoch_cap": summary.get("epoch_cap"),
+        "best_epoch": best,
+        "batch_size": summary.get("batch_size"),
+        "best_val_f1": summary.get("best_val_f1"),
+        "sampled_share_by_split": summary.get("sampled_share"),
+        "may_not_have_converged": (
+            best is not None and run is not None and best >= run - CONVERGENCE_WINDOW
+        ),
+        "seeds": summary.get("seeds"),
+    }
+
+
+def _outcome(iv: dict | None) -> str:
+    """gnn if the CI lies above 0, lgbm if below, else tie (also when the CI is undefined)."""
+    if not iv or iv.get("lo") is None or iv.get("hi") is None:
+        return "tie"
+    if iv["lo"] > 0:
+        return "gnn"
+    if iv["hi"] < 0:
+        return "lgbm"
+    return "tie"
+
+
+def verdict_of(primary: str, secondary: str) -> str:
+    """The pre-registered combination rule of two per-metric outcomes (M3 spec §13.4)."""
+    both = {primary, secondary}
+    if not both <= set(OUTCOMES):
+        raise ValueError(f"outcomes must be in {OUTCOMES}, got {primary!r}, {secondary!r}")
+    if both <= {"lgbm", "tie"} and "lgbm" in both:
+        return "lgbm"
+    if both <= {"gnn", "tie"} and "gnn" in both:
+        return "gnn"
+    if both == {"tie"}:
+        return "tie"
+    return "mixed"
+
+
+def winner_verdict(results: dict, report_cfg: dict) -> dict | None:
+    """The pre-registered winner rule on the primary period: d = winner_pair[0] -
+    winner_pair[1] per winner metric (primary, secondary) -> {pair, metrics: {metric: {point,
+    lo, hi, outcome}}, verdict, sentence}. None if the pair was not evaluated."""
+    a, b = report_cfg["winner_pair"]
+    if not all(m in results["meta"]["models"] for m in (a, b)):
+        return None
+    metrics = {}
+    for key in report_cfg["winner_metrics"]:
+        iv = _pair_diff(results, a, b, key)
+        metrics[key] = {**iv, "outcome": _outcome(iv)}
+    p, s = (metrics[k]["outcome"] for k in report_cfg["winner_metrics"])
+    verdict = verdict_of(p, s)
+    pa, pb = _model_phrase(a), _model_phrase(b)
+    if verdict == "lgbm":
+        sentence = f"{pb} wins"
+    elif verdict == "gnn":
+        sentence = f"{pa} wins"
+    elif verdict == "tie":
+        sentence = (
+            f"no significant difference; {pb} stays the served champion (cheaper to train, "
+            "µs serving)"
+        )
+    else:
+        parts = [
+            f"{pa if m['outcome'] == 'gnn' else pb} is better on {METRIC_LABELS.get(k, k)}"
+            for k, m in metrics.items()
+        ]
+        sentence = "mixed: " + "; ".join(parts)
+    boot = results.get("bootstrap") or {}
+    return {
+        "pair": [a, b],
+        "metrics": metrics,
+        "verdict": verdict,
+        "sentence": sentence,
+        "ci_level": report_cfg["ci_level"],
+        "bootstrap_level": boot.get("level"),
+        "level_matches": boot.get("level") == report_cfg["ci_level"],
+    }
+
+
+def training_cost(name: str, summary: dict) -> dict:
+    """An estimate of one GNN set's training $: gpu_seconds (the GPU worker calls' wall) x the
+    exact shape price (GPU + cores + memory, costplan.shape_usd_h). A lower bound: drivers,
+    container startups before the worker's clock and attempts that crashed are not in it.
+    gnn_lookahead_d10 shares gnn_lookahead's training (no cost of its own)."""
+    from aml.models.gnn import costplan
+
+    out = {
+        "gpu": summary.get("gpu"),
+        "gpu_seconds": summary.get("gpu_seconds"),
+        "cores": summary.get("cores"),
+        "memory_mib": summary.get("memory_mib"),
+        "usd_h": None,
+        "est_usd": None,
+        "shared_with": LOOKAHEAD_MODEL if name == LOOKAHEAD_D10_MODEL else None,
+    }
+    gpu = costplan._gpu_label(summary.get("gpu"))
+    secs = _val(summary.get("gpu_seconds"))
+    if out["shared_with"] or gpu is None or secs is None:
+        return out
+    cores = float(summary.get("cores") or costplan.PLANNING["cores"])
+    gib = float(summary.get("memory_mib") or costplan.PLANNING["memory_mib"]) / 1024.0
+    out["usd_h"] = costplan.shape_usd_h(gpu, cores, gib)
+    out["est_usd"] = costplan.usd(out["usd_h"], secs)
+    return out
+
+
+def gnn_block(results: dict, eval_df: pl.DataFrame, gnn: dict, data_cfg: dict) -> dict:
+    """results["gnn"]: compact summaries, guard evidence, the look-ahead gap, the faithful
+    section, the winner verdict (M3 spec §13.2) and a training-$ estimate per set."""
+    from aml.models.gnn import report_hash
+
+    report_cfg = gnn["report_cfg"]
+    summaries = dict(gnn.get("summaries") or {})
+    faithful = gnn.get("faithful")
+    names = [m for m in results["meta"]["models"] if m in COMPARISON_MODELS]
+    every = {m: summaries[m] for m in names if m in summaries}
+    if faithful:
+        every[FAITHFUL_MODEL] = faithful["summary"]
+    block = {
+        "report_hash": report_hash({"report": report_cfg}),
+        "report_cfg": report_cfg,
+        "models": names,
+        "summaries": {m: {k: s[k] for k in SUMMARY_KEYS if k in s} for m, s in every.items()},
+        "guard": {
+            m: {"total": summary_guard(s), "line": guard_line(m, s)} for m, s in every.items()
+        },
+        "training_cost": {m: training_cost(m, s) for m, s in every.items()},
+        "lookahead_gap": lookahead_gap(results, summaries, report_cfg),
+        "faithful": (
+            faithful_section(
+                eval_df,
+                faithful["scores"],
+                faithful["summary"],
+                report_cfg,
+                views={v: _view_days(data_cfg, v) for v in ("primary", "full")},
+            )
+            if faithful
+            else None
+        ),
+        "winner": winner_verdict(results, report_cfg),
+    }
+    return _clean(block)
+
+
+def _iv_text(iv: dict | None) -> str:
+    if not iv:
+        return NA
+    return _pct(iv.get("point")) + _ci({"k": iv}, "k") + (" *" if iv.get("significant") else "")
+
+
+def _winner_lines(results: dict, g: dict) -> list[str]:
+    w = g.get("winner")
+    L = ["## Which model wins (pre-registered rule)", ""]
+    if not w:
+        return L + ["The pre-registered pair was not evaluated, so there is no verdict.", ""]
+    a, b = w["pair"]
+    L += [
+        f"Pre-registered in `configs/gnn.yaml: report` (hash `{g['report_hash']}`) before any "
+        f"`--final` run: d = {a} − {b} on the primary period, paired bootstrap CI "
+        f"({100 * w['ci_level']:g}%). Per metric: {_model_phrase(a)} wins it if the CI lies above "
+        f"0, {_model_phrase(b)} if below 0, else a tie.",
+        "",
+    ]
+    rows = [
+        [
+            f"{'primary' if i == 0 else 'secondary'}: {METRIC_LABELS.get(k, k)}",
+            _iv_text(m),
+            m["outcome"],
+        ]
+        for i, (k, m) in enumerate(w["metrics"].items())
+    ]
+    L += _table(["Metric", f"{a} − {b}, pp", "Outcome"], rows) + [""]
+    L += [f"**Verdict: {w['sentence']}.**", ""]
+    if not w.get("level_matches", True):
+        L += [
+            f"Warning: the bootstrap level ({w['bootstrap_level']}) differs from the "
+            f"pre-registered ci_level ({w['ci_level']}).",
+            "",
+        ]
+    return L
+
+
+_SHARE_ORDER = ("train", "val_early", "val_late", "val", "test", "test_d10")
+
+
+def _share_text(shares: Any) -> str:
+    """'split x%, ...' in split order (summaries store sorted keys); a split without sampled
+    edges (share None) reads 'n/a'."""
+    if not isinstance(shares, dict) or not shares:
+        return NA
+    rank = {k: i for i, k in enumerate(_SHARE_ORDER)}
+    keys = sorted(shares, key=lambda k: (rank.get(k, len(rank)), k))
+    return ", ".join(
+        f"{k} {_pct(shares[k])}%" if _val(shares[k]) is not None else f"{k} {NA}" for k in keys
+    )
+
+
+def _gap_lines(results: dict, g: dict) -> list[str]:
+    gap = g.get("lookahead_gap")
+    if not gap:
+        return []
+    views = results["meta"]["views"]
+    plo, phi = views["primary"]["days"]
+    L = [f"## Look-ahead gap, step 1 (primary period, days {plo}-{phi})", ""]
+    L += [
+        "The same model, sampler (`last`) and hyperparameters as the causal GNN, trained and "
+        "scored with the look-ahead bound: a target's subgraph may hold edges up to the end of "
+        "its split's period (train: the end of train; validation: the end of the validation "
+        "days; test: the last edge of the data for `end`, the last edge of the primary period "
+        "for `d10`), and the target's own edge is dropped. The causal bound admits strictly "
+        "earlier minutes only. Gaps are look-ahead minus causal on the same paired bootstrap "
+        "replicates; * marks a CI that excludes 0.",
+        "",
+    ]
+    causal = CAUSAL_MODEL
+    hdr = [
+        "Metric",
+        _label(results, causal),
+        "Look-ahead, test bound end",
+        "Look-ahead, test bound d10",
+        "Gap end − causal, pp",
+        "Gap d10 − causal, pp",
+        "Tail: end − d10, pp",
+    ]
+    rows = [
+        [
+            METRIC_LABELS.get(k, k),
+            _pct(r["causal"]),
+            _pct(r["end"]),
+            _pct(r["d10"]),
+            _iv_text(r["gap_end"]),
+            _iv_text(r["gap_d10"]),
+            _iv_text(r["tail"]),
+        ]
+        for k, r in gap["metrics"].items()
+    ]
+    L += _table(hdr, rows) + [""]
+    va = gap["val_early_pr_auc"]
+
+    def ap(d: dict) -> str:
+        if d.get("mean") is None:
+            return NA
+        out = f"{100 * d['mean']:.1f}"
+        if d.get("std") is not None:
+            return out + f" ± {100 * d['std']:.1f}"
+        return out + (" (1 seed, no std)" if d.get("n_seeds") == 1 else "")
+
+    fresh = va["causal"].get("mean_fresh")
+    fresh_text = (
+        f" (seeds other than the HPO model seed, whose run repeats the selected trial: "
+        f"{100 * fresh:.1f})"
+        if fresh is not None
+        else ""
+    )
+    L += [
+        f"- val_early PR-AUC of the selected epochs (set summaries; ± = sample std over seeds): "
+        f"causal {ap(va['causal'])}{fresh_text}, look-ahead {ap(va['lookahead'])}.",
+        f"- Future share (sampled edges ranked at or after the target's minute ÷ all sampled "
+        f"edges, look-ahead; test_d10 = the d10 test pass): "
+        f"{_share_text(gap.get('future_share'))}.",
+        "- With a far bound, `last` takes each busy node's latest edges of the split, whereas "
+        "the published loader samples uniformly over the snapshot; the future share quantifies "
+        "how much of a subgraph that is.",
+        "- Tail: end − d10 is what test edges after the primary period add to the look-ahead "
+        "scores of the primary period.",
+        f"- {LOOKAHEAD_D10_MODEL} shares {LOOKAHEAD_MODEL}'s validation scores; its tail rows "
+        "carry causal-bound scores (so every score is finite), so it is shown on the primary "
+        "period only.",
+    ]
+    if gap.get("test_sampling_only"):
+        L.append("- One look-ahead seed: the CI covers test sampling only.")
+    return L + [""]
+
+
+def _faithful_lines(results: dict, g: dict) -> list[str]:
+    f = g.get("faithful")
+    if not f:
+        return []
+    full = f["views"]["full"]
+    lo, hi = full["days"]
+    L = ["## Faithful Multi-GNN reproduction (not in the model comparison)", ""]
+    L += [
+        "Multi-GIN+EU under the published protocol as recalled from Multi-GNN's code (the "
+        "paper does not state every setting; the recalled ones are listed in the faithful "
+        "summary's `recalled`): non-temporal snapshot graphs that contain the target, uniform "
+        "sampling, per-snapshot normalisation and a timestamp feature (the confined "
+        "exemptions). One seed; never part of the comparison above.",
+        "",
+    ]
+
+    def row(label: str, m: dict) -> list[str]:
+        return [
+            label,
+            _pct(m["f1"], 2),
+            _pct(m["precision"], 2),
+            _pct(m["recall"], 2),
+            _num(m["rows"]),
+        ]
+
+    L += [f"**full** test view (days {lo}-{hi}), argmax (score >= 0.5)", ""]
+    L += _table(
+        ["Targets", "F1 %", "Precision %", "Recall %", "Rows"],
+        [
+            row("sampled targets (published protocol)", full["sampled"]),
+            row("all targets (ours: unsampled ones via the virtual target edge)", full["all"]),
+        ],
+    )
+    band = f"[{f['band'][0]:.2f}, {f['band'][1]:.2f}]"
+    pub = f"{f['published_f1']:.2f} ± {f['published_std']:.2f}"
+    if f["verdict"] == "reproduced":
+        verdict = f"**reproduced** (F1 {f['f1_sampled_pct']:.2f} lies in {band})"
+    elif f["verdict"] == "undefined":
+        verdict = "**undefined** (no positive test target was sampled)"
+    else:
+        side = "below" if f["miss_pp"] < 0 else "above"
+        verdict = (
+            f"**not reproduced**: F1 {f['f1_sampled_pct']:.2f} is {abs(f['miss_pp']):.2f} pp "
+            f"{side} the band {band}"
+        )
+    cap = f["epoch_cap"] if f.get("epoch_cap") is not None else "none"
+    epochs = (
+        f"- Epochs run {_num(f['epochs_run'])} of {_num(f['max_epochs'])} (gate cap: {cap}); "
+        f"best epoch {_num(f['best_epoch'])} (0-based); batch size {_num(f['batch_size'])}."
+    )
+    if f.get("may_not_have_converged"):
+        epochs += (
+            f" The best epoch is among the last {CONVERGENCE_WINDOW} run: the run may not have "
+            "converged."
+        )
+    L += [
+        "",
+        f"Published Multi-GIN+EU on HI-Small: {pub} (Egressy et al., Table 2); pre-registered "
+        f"band {band} (± 2 std). Verdict: {verdict}.",
+        "",
+        f"- Sampled share of test targets: {_pct(full['sampled_share'])}%; by split (training "
+        f"summary): {_share_text(f.get('sampled_share_by_split'))}.",
+        epochs,
+    ]
+    if "primary" in f["views"]:
+        p = f["views"]["primary"]
+        plo, phi = p["days"]
+        L.append(
+            f"- Primary period (days {plo}-{phi}, for information): F1 sampled targets "
+            f"{_pct(p['sampled']['f1'], 2)}, all targets {_pct(p['all']['f1'], 2)}."
+        )
+    L.append("- One seed: a correct pipeline misses a ± 2 std band about 5% of the time.")
+    return L + [""]
+
+
+def _guard_lines(g: dict) -> list[str]:
+    guard = g.get("guard") or {}
+    if not guard:
+        return []
+    L = ["## As-of guard evidence (GNN)", ""]
+    L += [
+        "Every sampled batch of every GNN run is checked by a code path independent of the "
+        "sampler's: each sampled edge's rank must not exceed its target's bound, and a causal "
+        "subgraph must not contain the target. Totals over every split the set scored:",
+        "",
+    ]
+    return L + [f"- {v['line']}" for v in guard.values()] + [""]
+
+
+def _cost_lines(g: dict) -> list[str]:
+    costs = g.get("training_cost") or {}
+    if not costs:
+        return []
+    L = ["## GNN training cost (estimate)", ""]
+    L += [
+        "Per set: GPU-worker wall (gpu_seconds) x the exact shape price (GPU + cores + memory). "
+        "A lower bound: drivers, container startups, failed attempts and the HPO search "
+        "(`aml-hpo-gnn`) are not in it; reports/cost.md has the billed totals per Modal app "
+        "(every protocol trains under `aml-train-gnn`).",
+        "",
+    ]
+    for m, c in costs.items():
+        if c.get("shared_with"):
+            L.append(f"- {m}: trained with {c['shared_with']} (no cost of its own).")
+        elif c.get("est_usd") is None:
+            L.append(f"- {m}: {NA} (no GPU wall or GPU name in its summary).")
+        else:
+            hours = float(c["gpu_seconds"]) / 3600.0
+            L.append(
+                f"- {m}: ≈ ${c['est_usd']:.2f} ({hours:.2f} h on {c['gpu']}, "
+                f"{_num(c.get('cores'), 0)} cores, {_num(c.get('memory_mib'), 0)} MiB, at "
+                f"${c['usd_h']:.4f}/h)."
+            )
+    return L + [""]
+
+
+def _gnn_sections(results: dict) -> list[str]:
+    """The M3 sections of results.md ([] without GNN models: M2's report is unchanged)."""
+    g = results.get("gnn")
+    if not g:
+        return []
+    return (
+        _winner_lines(results, g)
+        + _gap_lines(results, g)
+        + _faithful_lines(results, g)
+        + _guard_lines(g)
+        + _cost_lines(g)
+    )
+
+
 # --------------------------------------------------------------------------- stage
 
 
@@ -1525,12 +2232,38 @@ def run_evaluate_stage(
     *,
     threads: int | None = None,
     extras: dict[str, Path] | None = None,
+    gnn: dict | None = None,
 ) -> dict:
     """Load rule flags and model scores (joined on row_id), evaluate, write results.json/.md.
 
     `extras` (kind in EXTRA_KINDS -> JSON file) adds the validation-only M2 sections to
     results.md and a `validation` block to results.json; with None both are exactly M1's.
+
+    `gnn` (M3; None = exactly M2's output) = {"model_views": {model: views} (default every
+    view; gnn_lookahead_d10: ("primary",)), "summaries": {model: its set summary.json},
+    "faithful": {"scores": Path, "summary": dict} | None, "report_cfg": gnn.yaml `report`}.
+    The GNN comparison models are ordinary entries of `model_dirs` (same scores layout); the
+    faithful run never is (refused). Adds meta.model_views and a `gnn` block (look-ahead gap,
+    faithful section, pre-registered winner verdict, guard evidence) and refuses when a --final
+    set recorded another `report` hash than report_cfg's.
     """
+    if FAITHFUL_MODEL in model_dirs:
+        raise ValueError(f"{FAITHFUL_MODEL} never enters the model comparison (its own section)")
+    if gnn is not None:
+        from aml.models.gnn import report_hash
+
+        unknown = sorted(set(gnn.get("model_views") or {}) - set(model_dirs))
+        bad = {
+            m: v
+            for m, v in (gnn.get("model_views") or {}).items()
+            if "primary" not in v or not set(v) <= set(VIEWS)
+        }
+        if unknown or bad:
+            raise ValueError(f"gnn model_views: unknown models {unknown}, bad views {bad}")
+        every = dict(gnn.get("summaries") or {})
+        if gnn.get("faithful"):
+            every[FAITHFUL_MODEL] = gnn["faithful"]["summary"]
+        check_report_hash(every, report_hash({"report": gnn["report_cfg"]}))
     ev = build_eval_frame(paths, data_cfg)
     keys = ev.select("row_id")
 
@@ -1573,6 +2306,10 @@ def run_evaluate_stage(
         results["meta"]["rules"] = rules_meta
     if extras:
         results["validation"] = _clean(load_validation(extras))
+    if gnn is not None:
+        mv = gnn.get("model_views") or {}
+        results["meta"]["model_views"] = {m: list(mv.get(m, VIEWS)) for m in model_dirs}
+        results["gnn"] = gnn_block(results, ev, gnn, data_cfg)
     out_dir = Path(out_dir)
     write_json_atomic(results, out_dir / "results.json")
     write_text_atomic(render_markdown(results), out_dir / "results.md")

@@ -1,3 +1,37 @@
-# Streaming demo (PLAN.md §6 M5). M2 creates it with only what the serving bundle needs.
+# Streaming demo (PLAN.md §6 M5). Only `replay` feeds the export run key; every other key is read
+# by the M5 demo only (modal_jobs/common.py export_key).
 replay:
-  max_events: 100000   # the first N test events (rank order) in the bundle's replay slice
+  max_events: 100000          # the first N test events (rank order) in the bundle's replay slice
+challenger: none              # LightGBM champion only (Stretch M4 would add a GNN shadow)
+alert:
+  rate_tag: headline          # thresholds.json tag the demo alerts at; headline = headline_rate_tag
+kafka:
+  transactions_topic: transactions
+  alerts_topic: alerts
+  group_id: aml-scorer        # committed offsets: lag monitoring only, never used to position
+  poll_timeout_s: 0.1
+scorer:
+  port: 8000
+  stop_timeout_s: 90          # consumer-thread join on shutdown; compose stop_grace_period 120 s
+  stall_after_s: 30           # /health: lag > 0 and nothing consumed for this long -> stalled
+replayer:
+  lead_s: 0.5                 # each point's schedule starts this long after its barrier
+  gap_cap_s: 60               # trace shape: simulated idle gaps longer than this are cut to it
+  barrier_timeout_s: 600
+  settle_s: 2.0
+latency:                      # one `docker compose up`: warm-up + points; events sum to max_events
+  warmup: {shape: uniform, rate: 76, events: 2000}
+  points:
+    - {shape: uniform, rate: 76,   events: 20000}
+    - {shape: trace,   rate: 76,   events: 10000}
+    - {shape: uniform, rate: 300,  events: 15000}
+    - {shape: uniform, rate: 1000, events: 20000}
+    - {shape: unpaced, rate: null, events: 33000}   # saturation: sent as fast as possible
+  min_tail_samples: 10        # quantile q is reported only if n * (1 - q) >= this
+  max_send_lag_ms: 5.0        # generator health at a paced point (p99 of send - schedule)
+  min_rate_ratio: 0.95        # sustained: achieved >= this * offered
+  e2e_p99_s: 1.0              # sustained: scheduled-send -> alert-write p99 stays bounded
+targets:                      # PLAN §4
+  min_rate_ev_s: 76           # 10x day 9's average (654,467 events / 86,400 s = 7.57 ev/s)
+  champion_p95_s: 0.050       # consume -> alert write, minute flush excluded
+  champion_p99_s: 1.0

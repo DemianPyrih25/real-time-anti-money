@@ -17,6 +17,29 @@ jobs:
     timeout-minutes: 30
     env:
       PYTHONIOENCODING: utf-8
+      AML_TEST_KAFKA: localhost:9092
+      AML_REQUIRE_KAFKA: "1"            # a missing broker FAILS the Kafka tests here
+    services:
+      kafka:                            # single-node KRaft, the same image as docker-compose.yml
+        image: apache/kafka:4.3.1
+        ports: ["9092:9092"]
+        env:
+          CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+          KAFKA_NODE_ID: "1"
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+          KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+          KAFKA_HEAP_OPTS: "-Xms256m -Xmx256m"
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
@@ -26,5 +49,15 @@ jobs:
       - run: uv sync --locked --all-groups
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      # The synthetic fixture only; nothing here contacts Modal.
+      # The synthetic fixture only; nothing here contacts Modal. The kafka_bootstrap fixture
+      # waits for the broker service, so it needs no health options.
       - run: uv run pytest -q
+
+  # M5: the compose file is valid and both images build (each build runs the in-image self-check).
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker compose config --quiet
+      - run: docker compose build

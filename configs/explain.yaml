@@ -1,0 +1,44 @@
+# Case packs and the typology matcher (PLAN.md §6 M6), read by aml.explain: the scorer's case-pack
+# hook (the app and the inproc CLI) and modal_jobs.case_eval.
+window_minutes: 4320     # subgraph: payments with minute in [m - W, m - 1] (clamped to W_max)
+cap_1hop: 10             # newest payments per direction (in, out) of the subject and counterparty
+cap_2hop: 4              # newest payments per hop-1 neighbour, continuing outward
+top_drivers: 5           # TreeSHAP drivers (log-odds) listed per alert
+
+# The typology matcher of the case packs: `tree` (primary) or `rules` (the decision list below).
+# The tree reads the alert's model inputs and the shape of its case subgraph (g_*). It is fitted
+# on val true-positive alerts by `make cases-val` (reports/typology_tree_val.json) and FROZEN in
+# configs/typology_tree.json: copy the file there before `make cases`. A missing or single-leaf
+# tree (the committed placeholder) falls back to the decision list, which test always reports as
+# the baseline.
+typology_model: tree
+typology_tree_fit:       # the val fit (sklearn DecisionTreeClassifier; inference is pure Python)
+  max_depth: 5
+  min_samples_leaf: 10
+  seed: 0                # the tree's and the stratified 5-fold CV split's
+
+# Decision-list thresholds, FROZEN after the val run: `make cases-val` writes the tuned values to
+# reports/typology_match_val.json; copy them here before `make cases`. The rule order is fixed in
+# src/aml/explain/typology_match.py. A null switches its rule off (random_out_max: no upper bound).
+typology:
+  cycle_min: 1           # CYCLE: cyc2 + cyc3 + cyc4 >= this (a temporal cycle closes on the edge)
+  sg_min: 1              # SCATTER-GATHER: sg_mids >= this
+  gs_min: 2              # GATHER-SCATTER: gs_u = min(u in, u out distinct, 1 d) >= this
+  fan_out_min: 3         # FAN-OUT: the sender's distinct receivers in 1 d >= this
+  fan_in_min: 3          # FAN-IN: the receiver's distinct payers in 1 d >= this
+  stack_pt_tol: 0.3      # STACK: |pt_ratio - 1| <= this (the sender passes its inflow on)
+  bipartite_min: 2       # BIPARTITE: sender's receivers and receiver's payers both >= this
+  random_in_min: null    # RANDOM: the sender's distinct payers >= this ...
+  random_out_max: 1      # ... and its distinct receivers <= this (a hop in a chain)
+
+# The val tuning grid (432 combinations): maximise accuracy on val true-positive alerts with a
+# known typology; ties -> the first combination. Keys not listed keep the `typology` values.
+typology_grid:
+  cycle_min: [1]
+  sg_min: [1, 2]
+  gs_min: [2, 3]
+  fan_out_min: [3, 5, 8]
+  fan_in_min: [3, 5, 8]
+  stack_pt_tol: [0.1, 0.3, null]
+  bipartite_min: [2, null]
+  random_in_min: [1, null]

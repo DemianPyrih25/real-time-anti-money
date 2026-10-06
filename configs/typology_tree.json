@@ -1,0 +1,749 @@
+{
+  "format": 1,
+  "tree": {
+    "feature": "u_out_newcp_1d",
+    "threshold": 0.5,
+    "left": {
+      "feature": "g_dst_in_deg",
+      "threshold": 2.5,
+      "left": {
+        "feature": "log_amount_usd",
+        "threshold": 8.511051177978516,
+        "left": {
+          "feature": "v_out_uniq_3d",
+          "threshold": 3.5,
+          "left": {
+            "feature": "g_n_nodes",
+            "threshold": 7.5,
+            "left": {
+              "label": "OTHER",
+              "n": 85,
+              "dist": {
+                "FAN-OUT": 1,
+                "FAN-IN": 4,
+                "CYCLE": 3,
+                "SCATTER-GATHER": 1,
+                "GATHER-SCATTER": 1,
+                "STACK": 9,
+                "BIPARTITE": 2,
+                "RANDOM": 5,
+                "OTHER": 59
+              }
+            },
+            "right": {
+              "label": "OTHER",
+              "n": 44,
+              "dist": {
+                "CYCLE": 10,
+                "SCATTER-GATHER": 2,
+                "GATHER-SCATTER": 5,
+                "STACK": 10,
+                "BIPARTITE": 1,
+                "RANDOM": 3,
+                "OTHER": 13
+              }
+            }
+          },
+          "right": {
+            "label": "STACK",
+            "n": 12,
+            "dist": {
+              "STACK": 11,
+              "BIPARTITE": 1
+            }
+          }
+        },
+        "right": {
+          "feature": "u_inflow_12h",
+          "threshold": 8.542807579040527,
+          "left": {
+            "feature": "u_in_gap",
+            "threshold": 998.5,
+            "left": {
+              "label": "STACK",
+              "n": 82,
+              "dist": {
+                "FAN-OUT": 2,
+                "FAN-IN": 3,
+                "CYCLE": 4,
+                "GATHER-SCATTER": 3,
+                "STACK": 47,
+                "BIPARTITE": 17,
+                "RANDOM": 2,
+                "OTHER": 4
+              }
+            },
+            "right": {
+              "label": "STACK",
+              "n": 125,
+              "dist": {
+                "FAN-OUT": 9,
+                "FAN-IN": 5,
+                "CYCLE": 15,
+                "SCATTER-GATHER": 19,
+                "GATHER-SCATTER": 6,
+                "STACK": 41,
+                "BIPARTITE": 20,
+                "RANDOM": 3,
+                "OTHER": 7
+              }
+            }
+          },
+          "right": {
+            "feature": "log_amount_usd",
+            "threshold": 9.67955493927002,
+            "left": {
+              "label": "CYCLE",
+              "n": 54,
+              "dist": {
+                "CYCLE": 23,
+                "SCATTER-GATHER": 1,
+                "STACK": 14,
+                "BIPARTITE": 4,
+                "RANDOM": 12
+              }
+            },
+            "right": {
+              "label": "RANDOM",
+              "n": 15,
+              "dist": {
+                "FAN-OUT": 1,
+                "SCATTER-GATHER": 1,
+                "STACK": 3,
+                "BIPARTITE": 1,
+                "RANDOM": 9
+              }
+            }
+          }
+        }
+      },
+      "right": {
+        "feature": "v_in_same_fmt_1d",
+        "threshold": 5.5,
+        "left": {
+          "feature": "v_in_mean_3d",
+          "threshold": 8.077812194824219,
+          "left": {
+            "feature": "v_in_max_1d",
+            "threshold": 8.618457794189453,
+            "left": {
+              "label": "CYCLE",
+              "n": 15,
+              "dist": {
+                "FAN-OUT": 2,
+                "FAN-IN": 2,
+                "CYCLE": 4,
+                "GATHER-SCATTER": 2,
+                "STACK": 1,
+                "RANDOM": 1,
+                "OTHER": 3
+              }
+            },
+            "right": {
+              "label": "GATHER-SCATTER",
+              "n": 28,
+              "dist": {
+                "FAN-OUT": 1,
+                "FAN-IN": 1,
+                "CYCLE": 1,
+                "SCATTER-GATHER": 10,
+                "GATHER-SCATTER": 10,
+                "STACK": 3,
+                "BIPARTITE": 1,
+                "RANDOM": 1
+              }
+            }
+          },
+          "right": {
+            "feature": "v_in_mean_3d",
+            "threshold": 9.698369026184082,
+            "left": {
+              "label": "FAN-IN",
+              "n": 60,
+              "dist": {
+                "FAN-OUT": 1,
+                "FAN-IN": 43,
+                "SCATTER-GATHER": 2,
+                "GATHER-SCATTER": 10,
+                "STACK": 3,
+                "OTHER": 1
+              }
+            },
+            "right": {
+              "label": "GATHER-SCATTER",
+              "n": 11,
+              "dist": {
+                "SCATTER-GATHER": 3,
+                "GATHER-SCATTER": 7,
+                "STACK": 1
+              }
+            }
+          }
+        },
+        "right": {
+          "feature": "u_out_gap",
+          "threshold": 1465.5,
+          "left": {
+            "label": "SCATTER-GATHER",
+            "n": 10,
+            "dist": {
+              "FAN-IN": 1,
+              "SCATTER-GATHER": 9
+            }
+          },
+          "right": {
+            "label": "SCATTER-GATHER",
+            "n": 18,
+            "dist": {
+              "SCATTER-GATHER": 18
+            }
+          }
+        }
+      }
+    },
+    "right": {
+      "feature": "u_in_uniq_3d",
+      "threshold": 2.5,
+      "left": {
+        "feature": "u_out_fmt_cheque_1d",
+        "threshold": 1.5,
+        "left": {
+          "feature": "u_in_sum_1d",
+          "threshold": 11.399180889129639,
+          "left": {
+            "feature": "u_out_std_1d",
+            "threshold": 0.00014007014578965027,
+            "left": {
+              "label": "SCATTER-GATHER",
+              "n": 17,
+              "dist": {
+                "FAN-OUT": 3,
+                "CYCLE": 3,
+                "SCATTER-GATHER": 7,
+                "GATHER-SCATTER": 2,
+                "STACK": 2
+              }
+            },
+            "right": {
+              "label": "SCATTER-GATHER",
+              "n": 59,
+              "dist": {
+                "FAN-OUT": 4,
+                "SCATTER-GATHER": 51,
+                "GATHER-SCATTER": 4
+              }
+            }
+          },
+          "right": {
+            "label": "GATHER-SCATTER",
+            "n": 13,
+            "dist": {
+              "SCATTER-GATHER": 5,
+              "GATHER-SCATTER": 8
+            }
+          }
+        },
+        "right": {
+          "label": "FAN-OUT",
+          "n": 11,
+          "dist": {
+            "FAN-OUT": 7,
+            "SCATTER-GATHER": 3,
+            "STACK": 1
+          }
+        }
+      },
+      "right": {
+        "feature": "u_in_uniq_3d",
+        "threshold": 3.5,
+        "left": {
+          "feature": "u_out_mean_3d",
+          "threshold": 8.469114303588867,
+          "left": {
+            "label": "FAN-OUT",
+            "n": 23,
+            "dist": {
+              "FAN-OUT": 23
+            }
+          },
+          "right": {
+            "label": "FAN-OUT",
+            "n": 10,
+            "dist": {
+              "FAN-OUT": 4,
+              "FAN-IN": 1,
+              "GATHER-SCATTER": 4,
+              "BIPARTITE": 1
+            }
+          }
+        },
+        "right": {
+          "feature": "u_out_uniq_1d",
+          "threshold": 3.5,
+          "left": {
+            "label": "GATHER-SCATTER",
+            "n": 28,
+            "dist": {
+              "GATHER-SCATTER": 28
+            }
+          },
+          "right": {
+            "label": "FAN-OUT",
+            "n": 10,
+            "dist": {
+              "FAN-OUT": 5,
+              "GATHER-SCATTER": 5
+            }
+          }
+        }
+      }
+    }
+  },
+  "trained_on": {
+    "period": "val",
+    "rows": 730,
+    "run_key": "case_eval-b71354a9ccbd"
+  },
+  "info": {
+    "rows": 730,
+    "features": 85,
+    "params": {
+      "max_depth": 5,
+      "min_samples_leaf": 10,
+      "seed": 0
+    },
+    "missing_value": -1e+30,
+    "depth": 5,
+    "leaves": 21,
+    "inputs": [
+      "u_out_newcp_1d",
+      "g_dst_in_deg",
+      "log_amount_usd",
+      "v_out_uniq_3d",
+      "g_n_nodes",
+      "u_inflow_12h",
+      "u_in_gap",
+      "v_in_same_fmt_1d",
+      "v_in_mean_3d",
+      "v_in_max_1d",
+      "u_out_gap",
+      "u_in_uniq_3d",
+      "u_out_fmt_cheque_1d",
+      "u_in_sum_1d",
+      "u_out_std_1d",
+      "u_out_mean_3d",
+      "u_out_uniq_1d"
+    ],
+    "classes": {
+      "FAN-OUT": 63,
+      "FAN-IN": 60,
+      "CYCLE": 63,
+      "SCATTER-GATHER": 132,
+      "GATHER-SCATTER": 95,
+      "STACK": 146,
+      "BIPARTITE": 48,
+      "RANDOM": 36,
+      "OTHER": 87
+    },
+    "majority": {
+      "label": "STACK",
+      "accuracy": 0.2
+    },
+    "train_accuracy": 0.584931506849315,
+    "cv_accuracy": 0.510958904109589,
+    "train": {
+      "n": 730,
+      "correct": 427,
+      "accuracy": 0.584931506849315,
+      "macro_recall": 0.524643138193843,
+      "per_typology": {
+        "FAN-OUT": {
+          "support": 63,
+          "predicted": 54,
+          "correct": 39,
+          "recall": 0.6190476190476191,
+          "precision": 0.7222222222222222
+        },
+        "FAN-IN": {
+          "support": 60,
+          "predicted": 60,
+          "correct": 43,
+          "recall": 0.7166666666666667,
+          "precision": 0.7166666666666667
+        },
+        "CYCLE": {
+          "support": 63,
+          "predicted": 69,
+          "correct": 27,
+          "recall": 0.42857142857142855,
+          "precision": 0.391304347826087
+        },
+        "SCATTER-GATHER": {
+          "support": 132,
+          "predicted": 104,
+          "correct": 85,
+          "recall": 0.6439393939393939,
+          "precision": 0.8173076923076923
+        },
+        "GATHER-SCATTER": {
+          "support": 95,
+          "predicted": 80,
+          "correct": 53,
+          "recall": 0.5578947368421052,
+          "precision": 0.6625
+        },
+        "STACK": {
+          "support": 146,
+          "predicted": 219,
+          "correct": 99,
+          "recall": 0.678082191780822,
+          "precision": 0.4520547945205479
+        },
+        "BIPARTITE": {
+          "support": 48,
+          "predicted": 0,
+          "correct": 0,
+          "recall": 0.0,
+          "precision": null
+        },
+        "RANDOM": {
+          "support": 36,
+          "predicted": 15,
+          "correct": 9,
+          "recall": 0.25,
+          "precision": 0.6
+        },
+        "OTHER": {
+          "support": 87,
+          "predicted": 129,
+          "correct": 72,
+          "recall": 0.8275862068965517,
+          "precision": 0.5581395348837209
+        }
+      },
+      "confusion": {
+        "FAN-OUT": {
+          "FAN-OUT": 39,
+          "FAN-IN": 1,
+          "CYCLE": 2,
+          "SCATTER-GATHER": 7,
+          "GATHER-SCATTER": 1,
+          "STACK": 11,
+          "BIPARTITE": 0,
+          "RANDOM": 1,
+          "OTHER": 1
+        },
+        "FAN-IN": {
+          "FAN-OUT": 1,
+          "FAN-IN": 43,
+          "CYCLE": 2,
+          "SCATTER-GATHER": 1,
+          "GATHER-SCATTER": 1,
+          "STACK": 8,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 4
+        },
+        "CYCLE": {
+          "FAN-OUT": 0,
+          "FAN-IN": 0,
+          "CYCLE": 27,
+          "SCATTER-GATHER": 3,
+          "GATHER-SCATTER": 1,
+          "STACK": 19,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 13
+        },
+        "SCATTER-GATHER": {
+          "FAN-OUT": 3,
+          "FAN-IN": 2,
+          "CYCLE": 1,
+          "SCATTER-GATHER": 85,
+          "GATHER-SCATTER": 18,
+          "STACK": 19,
+          "BIPARTITE": 0,
+          "RANDOM": 1,
+          "OTHER": 3
+        },
+        "GATHER-SCATTER": {
+          "FAN-OUT": 9,
+          "FAN-IN": 10,
+          "CYCLE": 2,
+          "SCATTER-GATHER": 6,
+          "GATHER-SCATTER": 53,
+          "STACK": 9,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 6
+        },
+        "STACK": {
+          "FAN-OUT": 1,
+          "FAN-IN": 3,
+          "CYCLE": 15,
+          "SCATTER-GATHER": 2,
+          "GATHER-SCATTER": 4,
+          "STACK": 99,
+          "BIPARTITE": 0,
+          "RANDOM": 3,
+          "OTHER": 19
+        },
+        "BIPARTITE": {
+          "FAN-OUT": 1,
+          "FAN-IN": 0,
+          "CYCLE": 4,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 1,
+          "STACK": 38,
+          "BIPARTITE": 0,
+          "RANDOM": 1,
+          "OTHER": 3
+        },
+        "RANDOM": {
+          "FAN-OUT": 0,
+          "FAN-IN": 0,
+          "CYCLE": 13,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 1,
+          "STACK": 5,
+          "BIPARTITE": 0,
+          "RANDOM": 9,
+          "OTHER": 8
+        },
+        "OTHER": {
+          "FAN-OUT": 0,
+          "FAN-IN": 1,
+          "CYCLE": 3,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 0,
+          "STACK": 11,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 72
+        }
+      }
+    },
+    "cv": {
+      "folds": 5,
+      "fold_accuracy": [
+        0.547945205479452,
+        0.5,
+        0.5205479452054794,
+        0.4726027397260274,
+        0.5136986301369864
+      ],
+      "n": 730,
+      "correct": 373,
+      "accuracy": 0.510958904109589,
+      "macro_recall": 0.45108454618747235,
+      "per_typology": {
+        "FAN-OUT": {
+          "support": 63,
+          "predicted": 49,
+          "correct": 27,
+          "recall": 0.42857142857142855,
+          "precision": 0.5510204081632653
+        },
+        "FAN-IN": {
+          "support": 60,
+          "predicted": 55,
+          "correct": 30,
+          "recall": 0.5,
+          "precision": 0.5454545454545454
+        },
+        "CYCLE": {
+          "support": 63,
+          "predicted": 58,
+          "correct": 24,
+          "recall": 0.38095238095238093,
+          "precision": 0.41379310344827586
+        },
+        "SCATTER-GATHER": {
+          "support": 132,
+          "predicted": 100,
+          "correct": 70,
+          "recall": 0.5303030303030303,
+          "precision": 0.7
+        },
+        "GATHER-SCATTER": {
+          "support": 95,
+          "predicted": 93,
+          "correct": 48,
+          "recall": 0.5052631578947369,
+          "precision": 0.5161290322580645
+        },
+        "STACK": {
+          "support": 146,
+          "predicted": 234,
+          "correct": 97,
+          "recall": 0.6643835616438356,
+          "precision": 0.41452991452991456
+        },
+        "BIPARTITE": {
+          "support": 48,
+          "predicted": 5,
+          "correct": 2,
+          "recall": 0.041666666666666664,
+          "precision": 0.4
+        },
+        "RANDOM": {
+          "support": 36,
+          "predicted": 23,
+          "correct": 9,
+          "recall": 0.25,
+          "precision": 0.391304347826087
+        },
+        "OTHER": {
+          "support": 87,
+          "predicted": 113,
+          "correct": 66,
+          "recall": 0.7586206896551724,
+          "precision": 0.584070796460177
+        }
+      },
+      "confusion": {
+        "FAN-OUT": {
+          "FAN-OUT": 27,
+          "FAN-IN": 1,
+          "CYCLE": 0,
+          "SCATTER-GATHER": 8,
+          "GATHER-SCATTER": 13,
+          "STACK": 11,
+          "BIPARTITE": 1,
+          "RANDOM": 1,
+          "OTHER": 1
+        },
+        "FAN-IN": {
+          "FAN-OUT": 1,
+          "FAN-IN": 30,
+          "CYCLE": 1,
+          "SCATTER-GATHER": 4,
+          "GATHER-SCATTER": 10,
+          "STACK": 10,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 4
+        },
+        "CYCLE": {
+          "FAN-OUT": 0,
+          "FAN-IN": 1,
+          "CYCLE": 24,
+          "SCATTER-GATHER": 4,
+          "GATHER-SCATTER": 2,
+          "STACK": 20,
+          "BIPARTITE": 0,
+          "RANDOM": 3,
+          "OTHER": 9
+        },
+        "SCATTER-GATHER": {
+          "FAN-OUT": 15,
+          "FAN-IN": 6,
+          "CYCLE": 2,
+          "SCATTER-GATHER": 70,
+          "GATHER-SCATTER": 13,
+          "STACK": 24,
+          "BIPARTITE": 0,
+          "RANDOM": 1,
+          "OTHER": 1
+        },
+        "GATHER-SCATTER": {
+          "FAN-OUT": 6,
+          "FAN-IN": 12,
+          "CYCLE": 1,
+          "SCATTER-GATHER": 11,
+          "GATHER-SCATTER": 48,
+          "STACK": 11,
+          "BIPARTITE": 0,
+          "RANDOM": 0,
+          "OTHER": 6
+        },
+        "STACK": {
+          "FAN-OUT": 0,
+          "FAN-IN": 1,
+          "CYCLE": 14,
+          "SCATTER-GATHER": 2,
+          "GATHER-SCATTER": 6,
+          "STACK": 97,
+          "BIPARTITE": 1,
+          "RANDOM": 8,
+          "OTHER": 17
+        },
+        "BIPARTITE": {
+          "FAN-OUT": 0,
+          "FAN-IN": 1,
+          "CYCLE": 3,
+          "SCATTER-GATHER": 1,
+          "GATHER-SCATTER": 1,
+          "STACK": 38,
+          "BIPARTITE": 2,
+          "RANDOM": 1,
+          "OTHER": 1
+        },
+        "RANDOM": {
+          "FAN-OUT": 0,
+          "FAN-IN": 0,
+          "CYCLE": 11,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 0,
+          "STACK": 8,
+          "BIPARTITE": 0,
+          "RANDOM": 9,
+          "OTHER": 8
+        },
+        "OTHER": {
+          "FAN-OUT": 0,
+          "FAN-IN": 3,
+          "CYCLE": 2,
+          "SCATTER-GATHER": 0,
+          "GATHER-SCATTER": 0,
+          "STACK": 15,
+          "BIPARTITE": 1,
+          "RANDOM": 0,
+          "OTHER": 66
+        }
+      }
+    },
+    "importances": [
+      {
+        "feature": "u_in_uniq_3d",
+        "importance": 0.19562059824855518
+      },
+      {
+        "feature": "u_out_newcp_1d",
+        "importance": 0.15784840887277327
+      },
+      {
+        "feature": "g_dst_in_deg",
+        "importance": 0.1346123828044937
+      },
+      {
+        "feature": "log_amount_usd",
+        "importance": 0.12445840705778259
+      },
+      {
+        "feature": "v_in_same_fmt_1d",
+        "importance": 0.08551735716383313
+      },
+      {
+        "feature": "v_in_mean_3d",
+        "importance": 0.06930412703215283
+      },
+      {
+        "feature": "v_out_uniq_3d",
+        "importance": 0.04277140910356585
+      },
+      {
+        "feature": "u_inflow_12h",
+        "importance": 0.04180066505790397
+      },
+      {
+        "feature": "g_n_nodes",
+        "importance": 0.027416256545961873
+      },
+      {
+        "feature": "u_out_fmt_cheque_1d",
+        "importance": 0.02189731717778262
+      }
+    ]
+  }
+}

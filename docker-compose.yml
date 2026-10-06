@@ -1,0 +1,98 @@
+# M5 streaming demo (PLAN.md §6 M5), CPU only: `make demo` = `docker compose up --build`.
+# Needs the serving bundle in ./serving (`make pull`, or `make bundle-fixture` without Modal).
+# Every `up` starts fresh: init wipes the runtime volume and reports/latency/ and recreates both
+# topics, so a second `up` against a live stack also wipes them. Clean up with `make demo-down`.
+# REPLAY_MAX_EVENTS=N caps the run (scorer and replayer); AML_HOST_NOTE goes into latency.md.
+name: aml
+
+x-app: &app
+  image: aml-scorer:local
+  build: {context: ., dockerfile: services/scorer.Dockerfile}
+  init: true                          # tini as PID 1 forwards SIGTERM; commands are exec form
+  restart: "no"                       # an order error must stop the run, not loop
+  environment:
+    AML_BUNDLE_DIR: /bundle
+    AML_RUNTIME_DIR: /runtime
+    AML_REPORTS_DIR: /reports
+    AML_CONFIG: /app/configs/serving.yaml
+    KAFKA_BOOTSTRAP: kafka:19092
+    SCORER_URL: http://scorer:8000
+    AML_KAFKA_IMAGE: apache/kafka:4.3.1   # disclosure only (latency.md); keep equal to kafka.image
+    REPLAY_MAX_EVENTS: ${REPLAY_MAX_EVENTS:-}
+    AML_HOST_NOTE: ${AML_HOST_NOTE:-}
+
+services:
+  kafka:
+    image: apache/kafka:4.3.1
+    hostname: kafka
+    environment:                      # single-node KRaft (broker + controller)
+      CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"   # only init creates topics (1 partition each)
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx512m"       # PLAN §6 M5
+    ports: ["127.0.0.1:9092:9092"]    # laptop Kafka tests: AML_TEST_KAFKA=localhost:9092
+    mem_limit: 1g
+    stop_grace_period: 30s
+    restart: "no"                     # no healthcheck: init waits for the broker itself
+
+  init:                               # one-shot fresh start (python -m aml.serving.state init)
+    <<: *app
+    command: ["python", "-m", "aml.serving.state", "init"]
+    volumes: ["runtime:/runtime", "./reports:/reports", "./configs:/app/configs:ro"]
+    depends_on:
+      kafka: {condition: service_started}
+    mem_limit: 512m
+
+  scorer:
+    <<: *app
+    command: ["python", "-m", "aml.serving.app", "--transport", "kafka"]
+    ports: ["127.0.0.1:8000:8000"]
+    volumes:
+      - ./serving:/bundle:ro
+      - ./configs:/app/configs:ro
+      - runtime:/runtime
+      - ./reports:/reports
+    depends_on:
+      kafka: {condition: service_started}
+      init: {condition: service_completed_successfully}
+    healthcheck:                      # urlopen raises on a 503, so only a 200 /health passes
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.build_opener(u.ProxyHandler({})).open('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 30s
+      start_interval: 2s
+      start_period: 300s              # bundle restore and the parity references load first
+      timeout: 5s
+      retries: 3
+    stop_signal: SIGTERM
+    stop_grace_period: 120s           # > scorer.stop_timeout_s (90) + the snapshot write
+    mem_limit: 3g
+
+  replayer:
+    <<: *app
+    image: aml-replayer:local
+    build: {context: ., dockerfile: services/replayer.Dockerfile}
+    command: ["python", "-m", "aml.streaming.replayer"]
+    volumes: ["./serving:/bundle:ro", "./configs:/app/configs:ro"]
+    depends_on:
+      init: {condition: service_completed_successfully}
+      scorer: {condition: service_healthy}    # latency excludes the scorer's startup
+    stop_grace_period: 15s
+    mem_limit: 768m
+
+volumes:
+  runtime: {}                         # Docker VM ext4: SQLite WAL + fsync/rename semantics

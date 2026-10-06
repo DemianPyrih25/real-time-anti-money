@@ -701,3 +701,603 @@ def test_evaluate_job_reads_rules_engine_and_graph_models(tmp_path, monkeypatch)
     assert {k: v for k, v in keys_sent.items() if k != "eval"} == {
         k: v for k, v in base.items() if k != "eval"
     }
+
+
+# --------------------------------------------------------------------------- M3: GNN models
+
+GNN_COMPARISON = ("gnn_causal", "gnn_lookahead", "gnn_lookahead_d10")
+M2_REPORT_ORDER = ("lgbm_tx", "lgbm_graph")  # modal_jobs.evaluate.stage_dirs
+
+
+def _gnn_report_cfg() -> dict:
+    from tests.conftest import load_yaml
+
+    return copy.deepcopy(load_yaml("gnn.yaml")["report"])
+
+
+def _labelled(paths: DataPaths) -> pl.DataFrame:
+    tx = pl.read_parquet(paths.transactions).select("row_id", "split", "day")
+    lab = pl.read_parquet(paths.labels).select("row_id", "is_laundering")
+    return tx.join(lab, on="row_id", how="left").sort("row_id")
+
+
+def _write_scores(paths, root, name, seeds, *, seed, signal=0.35, test_shift=0.0):
+    """scores.parquet (row_id, split, score_s<k>) for every row: informative, in [0, 1]."""
+    j = _labelled(paths)
+    y = j["is_laundering"].fill_null(0).to_numpy()
+    test = (j["split"] == "test").to_numpy()
+    rng = np.random.default_rng(seed)
+    cols = {}
+    for k in seeds:
+        s = rng.random(len(y)) * 0.6 + y * signal + rng.normal(0, 0.05, len(y)) + test * test_shift
+        cols[f"score_s{k}"] = pl.Series(np.clip(s, 0.0, 1.0))
+    d = root / name
+    write_parquet_atomic(j.select("row_id", "split").with_columns(**cols), d / "scores.parquet")
+    return d
+
+
+def _guard(edges: int, dropped: int = 0) -> dict:
+    return {
+        "edges_checked": edges,
+        "violations": 0,
+        "target_hits": 0,
+        "max_slack": -1,
+        "future_edges": dropped,
+        "dropped_target_copies": dropped,
+    }
+
+
+def _gnn_summary(protocol: str, seeds: list[int], report_cfg: dict, **extra) -> dict:
+    from aml.models.gnn import report_hash
+
+    doc = {
+        "protocol": protocol,
+        "seeds": seeds,
+        "final": True,
+        "report_hash": report_hash({"report": report_cfg}),
+        "best_val_ap_mean": 0.41,
+        "best_val_ap_std": 0.02,
+        "guard": {"val_early": _guard(1000), "val_late": _guard(2000), "test": _guard(3000)},
+    }
+    doc.update(extra)
+    return doc
+
+
+@pytest.fixture
+def gnn_stage(mini, data_cfg, rules_cfg, tmp_path):
+    """Stage inputs for lgbm_tx, lgbm_graph, the three GNN comparison models and gnn_faithful."""
+    paths, _ = mini
+    dcfg, rcfg = _cfgs(data_cfg, rules_cfg, B=40)
+    rules_dir, model_dirs = _write_stage_inputs(paths, rcfg, tmp_path)
+    model_dirs["lgbm_graph"] = _write_scores(paths, tmp_path, "lgbm_graph", [0, 1], seed=11)
+    report_cfg = _gnn_report_cfg()
+    gnn_dirs = {
+        "gnn_causal": _write_scores(paths, tmp_path, "gnn_causal", [0, 1, 2], seed=12),
+        "gnn_lookahead": _write_scores(paths, tmp_path, "gnn_lookahead", [0], seed=13),
+        "gnn_lookahead_d10": _write_scores(
+            paths, tmp_path, "gnn_lookahead_d10", [0], seed=13, test_shift=0.05
+        ),
+    }
+    la_guard = {"val_early": _guard(500, dropped=40), "test": _guard(900, dropped=60)}
+    l4 = {"gpu": "NVIDIA L4", "cores": 8, "memory_mib": 32768}
+    summaries = {
+        "gnn_causal": _gnn_summary(
+            "causal",
+            [0, 1, 2],
+            report_cfg,
+            per_seed={str(k): {"best_val_ap": v} for k, v in enumerate((0.39, 0.41, 0.43))},
+            best_val_ap_std=0.0163,  # the training summary's ddof 0 (not what results.md shows)
+            best_val_ap_mean_fresh=0.42,
+            gpu_seconds=3600.0,
+            **l4,
+        ),
+        "gnn_lookahead": _gnn_summary(
+            "lookahead",
+            [0],
+            report_cfg,
+            guard=la_guard,
+            per_seed={"0": {"best_val_ap": 0.47}},
+            best_val_ap_mean=0.47,
+            best_val_ap_std=0.0,  # ddof 0 of one seed: no std to show
+            future_share={"train": 0.25, "val_early": 0.4, "test": 0.5},
+        ),
+        "gnn_lookahead_d10": _gnn_summary(
+            "lookahead",
+            [0],
+            report_cfg,
+            guard=la_guard,
+            future_share={"train": 0.25, "val_early": 0.4, "test_d10": 0.3},
+            gpu_seconds=1800.0,
+            **l4,
+        ),
+    }
+    fa_dir = _write_scores(paths, tmp_path, "gnn_faithful", [0], seed=14, signal=0.5)
+    fa = pl.read_parquet(fa_dir / "scores.parquet")
+    sampled = np.random.default_rng(15).random(fa.height) < 0.9
+    write_parquet_atomic(fa.with_columns(sampled=pl.Series(sampled)), fa_dir / "scores.parquet")
+    fa_summary = _gnn_summary(
+        "faithful",
+        [0],
+        report_cfg,
+        epochs_run=100,
+        max_epochs=100,
+        epoch_cap=None,
+        best_epoch=97,
+        batch_size=8192,
+        sampled_share={"val_early": 0.95, "val_late": 0.96},
+        guard={"test": _guard(7000)},
+        gpu="NVIDIA L4",
+        gpu_seconds=7200.0,
+        cores=8,
+        memory_mib=24576,
+    )
+    gnn = {
+        "model_views": {"gnn_lookahead_d10": ["primary"]},
+        "summaries": summaries,
+        "faithful": {"scores": fa_dir / "scores.parquet", "summary": fa_summary},
+        "report_cfg": report_cfg,
+    }
+    return {
+        "paths": paths,
+        "dcfg": dcfg,
+        "rcfg": rcfg,
+        "rules_dir": rules_dir,
+        "m2_dirs": {n: model_dirs[n] for n in M2_REPORT_ORDER},
+        "all_dirs": {**{n: model_dirs[n] for n in M2_REPORT_ORDER}, **gnn_dirs},
+        "gnn": gnn,
+        "out": tmp_path,
+    }
+
+
+def _stage(s: dict, out: str, gnn: dict | None = None, dirs: dict | None = None) -> dict:
+    return run_evaluate_stage(
+        s["paths"],
+        dirs or s["all_dirs"],
+        s["rules_dir"],
+        s["out"] / out,
+        s["dcfg"],
+        s["rcfg"],
+        gnn=gnn,
+    )
+
+
+def test_f1_argmax_is_bootstrapped_and_in_model_diffs(evaluated):
+    from aml.eval.report import BOOT_MODEL_KEYS, M2_MODEL_DIFF_KEYS, MODEL_DIFF_KEYS
+
+    res, *_ = evaluated
+    assert BOOT_MODEL_KEYS[-1] == MODEL_DIFF_KEYS[-1] == "literature.f1_argmax"
+    assert MODEL_DIFF_KEYS[:-1] == M2_MODEL_DIFF_KEYS  # existing keys unchanged, in order
+    boot = res["bootstrap"]
+    for name in ("lgbm_tx", "single"):
+        iv = boot["models"][name]["literature.f1_argmax"]
+        assert iv["lo"] <= iv["hi"]
+    d = boot["model_diffs"]["single - lgbm_tx"]["literature.f1_argmax"]
+    pv = res["views"]["primary"]["models"]
+    want = (
+        pv["single"]["literature"]["f1_argmax"]["mean"]
+        - (pv["lgbm_tx"]["literature"]["f1_argmax"]["mean"])
+    )
+    assert d["point"] == pytest.approx(want) and d["lo"] <= d["hi"]
+
+
+def test_f1_argmax_bootstrap_matches_the_weighted_metric(mini, data_cfg, rules_cfg):
+    """A replicate's literature.f1_argmax equals metrics.prf_at_threshold(0.5) under that
+    replicate's row weights (B = 1, so the CI is the replicate itself)."""
+    from aml.eval.bootstrap import make_clusters, replicate_weights
+    from aml.eval.metrics import ARGMAX_THRESHOLD, prf_at_threshold
+    from aml.eval.typology import attempt_ids
+
+    _, ev = mini
+    dcfg, rcfg = _cfgs(data_cfg, rules_cfg, B=1)
+    flags, scores = _fake_inputs(ev, rcfg)
+    res = evaluate(ev, flags, {"one": scores["single"]}, dcfg, rcfg)
+    test = (ev["split"] == "test").to_numpy()
+    lo, hi = dcfg["test_views"]["primary"]
+    day = ev["day"].to_numpy()
+    mask = test & (day >= lo) & (day <= hi)
+    y = ev["y"].to_numpy()[mask]
+    strata, clusters = make_clusters(
+        y, attempt_ids(ev["attempt_id"])[mask], ev["src"].to_numpy()[mask]
+    )
+    (w,) = next(replicate_weights(strata, clusters, 1, dcfg["evaluation"]["bootstrap_seed"]))
+    want = prf_at_threshold(y, scores["single"][0][mask], ARGMAX_THRESHOLD, w)["f1"]
+    iv = res["bootstrap"]["models"]["one"]["literature.f1_argmax"]
+    assert iv["lo"] == pytest.approx(want) and iv["hi"] == pytest.approx(want)
+
+
+def _restore_report_order(res: dict, rules_cfg: dict) -> dict:
+    """results.json is written with sorted keys; restore the insertion order results.md was
+    rendered in (models in report order, rates headline first, scenarios in SCENARIOS order)."""
+    from aml.rules.sql_baseline import SCENARIOS
+
+    def order(d: dict, keys) -> dict:
+        first = {k: d[k] for k in keys if k in d}
+        return {**first, **{k: v for k, v in d.items() if k not in first}}
+
+    tags = [rate_tag(r) for r in _rates(rules_cfg)]
+    res["meta"]["models"] = order(res["meta"]["models"], M2_REPORT_ORDER)
+    res["meta"]["rates"] = order(res["meta"]["rates"], tags)
+    res["thresholds"] = order(res["thresholds"], M2_REPORT_ORDER)
+    for th in res["thresholds"].values():
+        th["rate"] = order(th["rate"], tags)
+    for v in res["views"].values():
+        v["models"] = order(v["models"], M2_REPORT_ORDER)
+        if "scenarios" in v["rules"]:
+            v["rules"]["scenarios"] = order(v["rules"]["scenarios"], SCENARIOS)
+    for k in ("models", "diffs"):
+        res["bootstrap"][k] = order(res["bootstrap"][k], M2_REPORT_ORDER)
+    return res
+
+
+# SHA-256 of the M2 reports/results.md (real data) that tests/golden/m2_results.json rendered
+# to. Only README.md is published, so the Markdown itself is pinned by its hash.
+M2_RESULTS_MD_SHA256 = "c040c21dc8cad96bb6d8a0c9d6fc179322a65e281fd5310b67fc7473e11c6372"
+
+
+def test_committed_m2_results_render_byte_identical():
+    """Regression against the M2 outputs (real data): the current renderer turns the M2
+    results.json (frozen in tests/golden/; no GNN models, no literature.f1_argmax yet) into
+    exactly the M2 results.md, and the pinned headline numbers are the README's."""
+    import hashlib
+
+    from tests.conftest import REPO_ROOT, load_yaml
+
+    res = json.loads((REPO_ROOT / "tests" / "golden" / "m2_results.json").read_text("utf-8"))
+    assert "gnn" not in res and "model_views" not in res["meta"]
+    assert list(res["meta"]["models"]) == sorted(M2_REPORT_ORDER)  # sorted keys on disk
+    res = _restore_report_order(res, load_yaml("rules.yaml"))
+    md = render_markdown(res).encode("utf-8")
+    assert hashlib.sha256(md).hexdigest() == M2_RESULTS_MD_SHA256
+    head = res["meta"]["headline_tag"]
+    a = res["views"]["primary"]["models"]["lgbm_graph"]["a"][head]["recall"]
+    ci = res["bootstrap"]["models"]["lgbm_graph"]["a.recall"]
+    assert (round(100 * a["mean"], 1), round(100 * a["std"], 1)) == (68.4, 0.6)
+    assert (round(100 * ci["lo"], 1), round(100 * ci["hi"], 1)) == (60.0, 75.7)
+
+
+def test_m2_values_and_cis_identical_with_and_without_gnn_models(mini, data_cfg, rules_cfg):
+    _, ev = mini
+    dcfg, rcfg = _cfgs(data_cfg, rules_cfg, B=50)
+    flags, scores = _fake_inputs(ev, rcfg)
+    rng = np.random.default_rng(7)
+    m2 = {"lgbm_tx": scores["lgbm_tx"], "lgbm_graph": np.round(rng.random((2, ev.height)), 3)}
+    gnn = {n: np.round(rng.random((1 + (n == "gnn_causal"), ev.height)), 3) for n in GNN_COMPARISON}
+    plain = evaluate(ev, flags, m2, dcfg, rcfg, threads=2)
+    both = evaluate(ev, flags, {**m2, **gnn}, dcfg, rcfg, threads=3)
+    for name in m2:
+        assert both["thresholds"][name] == plain["thresholds"][name]
+        assert both["bootstrap"]["models"][name] == plain["bootstrap"]["models"][name]
+        assert both["bootstrap"]["diffs"][name] == plain["bootstrap"]["diffs"][name]
+    for v in ("primary", "tail", "full"):
+        assert both["views"][v]["rules"] == plain["views"][v]["rules"]
+        for name in m2:
+            assert both["views"][v]["models"][name] == plain["views"][v]["models"][name]
+    for k in ("rules", "strata"):
+        assert both["bootstrap"][k] == plain["bootstrap"][k]
+    pair = "lgbm_graph - lgbm_tx"
+    assert both["bootstrap"]["model_diffs"][pair] == plain["bootstrap"]["model_diffs"][pair]
+
+
+def test_without_gnn_the_report_keeps_the_m2_layout(gnn_stage):
+    s = gnn_stage
+    res = _stage(s, "m2", dirs=s["m2_dirs"])
+    assert "gnn" not in res and "model_views" not in res["meta"]
+    md = (s["out"] / "m2" / "results.md").read_text(encoding="utf-8")
+    assert md == render_markdown(res)
+    for needle in ("F1 @ 0.5 (argmax), pp", "Which model wins", "Look-ahead gap", "guard"):
+        assert needle not in md, needle
+    table = md.split("### Paired model differences (primary)")[1].split("\n\n")[1]
+    assert table.splitlines()[0] == (
+        "| Models | Recall (a), pp | Precision (a), pp | Recall (b), pp | "
+        "F1 @ val_late-best threshold, pp | PR-AUC, pp |"
+    )
+    # The faithful run never enters the comparison, with or without the gnn argument.
+    dirs = {**s["m2_dirs"], "gnn_faithful": s["m2_dirs"]["lgbm_tx"]}
+    with pytest.raises(ValueError, match="never enters the model comparison"):
+        _stage(s, "x", dirs=dirs)
+    with pytest.raises(ValueError, match="never enters the model comparison"):
+        _stage(s, "y", gnn=s["gnn"], dirs={**s["all_dirs"], "gnn_faithful": s["out"]})
+
+
+def _section(md: str, title: str) -> str:
+    return md.split(title)[1].split("\n## ")[0]
+
+
+def test_gnn_report_sections_and_primary_only_rendering(gnn_stage):
+    s = gnn_stage
+    res = _stage(s, "gnn", gnn=s["gnn"])
+    out = s["out"] / "gnn"
+    assert json.loads((out / "results.json").read_text(encoding="utf-8")) == res
+    md = (out / "results.md").read_text(encoding="utf-8")
+    assert md == render_markdown(res)
+    assert list(res["meta"]["models"]) == [*M2_REPORT_ORDER, *GNN_COMPARISON]
+    assert res["meta"]["model_views"]["gnn_lookahead_d10"] == ["primary"]
+    assert res["meta"]["model_views"]["gnn_causal"] == ["primary", "tail", "full"]
+    # d10 is evaluated on every view (finite-score invariant) but rendered on the primary only.
+    assert "gnn_lookahead_d10" in res["views"]["tail"]["models"]
+    d10 = "| gnn_lookahead_d10 (1 seed, no std) |"
+    assert d10 in _section(md, "## Headline: primary period")
+    assert "| gnn_lookahead_d10 - gnn_lookahead |" in md
+    lit = _section(md, "## Literature-comparable metrics")
+    primary_lit, full_lit = lit.split("**full**")
+    assert d10 in primary_lit and d10 not in full_lit
+    assert "| gnn_causal (3 seeds) |" in full_lit
+    for title in ("## Test view: tail", "## Test view: full"):
+        assert "gnn_lookahead_d10" not in _section(md, title), title
+        assert "gnn_lookahead (1 seed, no std)" in _section(md, title), title
+    for title in (
+        "## Recall per typology at (a)",
+        "## Attempt-level detection at (a)",
+        "## Memorisation check at (a)",
+    ):
+        blocks = _section(md, title).split("**")
+        prim = next(b for i, b in enumerate(blocks) if blocks[i - 1].startswith("primary"))
+        assert "gnn_lookahead_d10" in prim, title
+        for v in ("tail", "full"):
+            other = next(b for i, b in enumerate(blocks) if blocks[i - 1].startswith(v))
+            assert "gnn_lookahead_d10" not in other, (title, v)
+            assert "gnn_lookahead " in other or "gnn_lookahead detected" in other, (title, v)
+    # GNN layout: F1 @ 0.5 in the model differences.
+    assert "F1 @ 0.5 (argmax), pp" in md
+    for title in (
+        "## Which model wins (pre-registered rule)",
+        "## Look-ahead gap, step 1 (primary period, days 9-10)",
+        "## Faithful Multi-GNN reproduction (not in the model comparison)",
+        "## As-of guard evidence (GNN)",
+    ):
+        assert title in md, title
+    assert md.index("## Memorisation check at (a)") < md.index("## Which model wins")
+    assert md.index("## As-of guard evidence (GNN)") < md.index("## Literature reference")
+    guard = _section(md, "## As-of guard evidence (GNN)")
+    assert "- gnn_causal: 0 violations over 6,000 sampled edges; 0 target hits." in guard
+    assert (
+        "- gnn_lookahead: 0 violations over 1,400 sampled edges; 0 target hits (100 sampled "
+        "copies of the target dropped)." in guard
+    )
+    assert "- gnn_faithful (snapshot guard): 0 violations over 7,000 sampled edges" in guard
+    gap = _section(md, "## Look-ahead gap, step 1")
+    assert "One look-ahead seed: the CI covers test sampling only." in gap
+    # review EVAL-4: the d10 test pass's future share and the `last`-vs-uniform caveat
+    assert "train 25.0%, val_early 40.0%, test 50.0%, test_d10 30.0%." in gap
+    assert "whereas the published loader samples uniformly" in gap
+    # review EVAL-1: sample std (ddof 1) over the per-seed values, none for one seed, and the
+    # causal mean without the HPO seed's run
+    assert (
+        "causal 41.0 ± 2.0 (seeds other than the HPO model seed, whose run repeats the "
+        "selected trial: 42.0), look-ahead 47.0 (1 seed, no std)." in gap
+    )
+    va = res["gnn"]["lookahead_gap"]["val_early_pr_auc"]
+    assert va["causal"]["std"] == pytest.approx(0.02) and va["lookahead"]["std"] is None
+    # review EVAL-7: a training-$ estimate per set (gpu_seconds x the exact shape price)
+    cost = _section(md, "## GNN training cost (estimate)")
+    from aml.models.gnn import costplan
+
+    l4_h = costplan.shape_usd_h("L4", 8, 32)
+    assert f"- gnn_causal: ≈ ${l4_h:.2f} (1.00 h on NVIDIA L4, 8 cores, 32,768 MiB" in cost
+    assert "- gnn_lookahead: n/a" in cost  # no GPU wall in its summary
+    assert "- gnn_lookahead_d10: trained with gnn_lookahead (no cost of its own)." in cost
+    f_usd = 2 * costplan.shape_usd_h("L4", 8, 24)
+    assert f"- gnn_faithful: ≈ ${f_usd:.2f} (2.00 h on NVIDIA L4, 8 cores, 24,576 MiB" in cost
+    tc = res["gnn"]["training_cost"]
+    assert tc["gnn_causal"]["est_usd"] == pytest.approx(l4_h)
+    assert res["gnn"]["summaries"]["gnn_causal"]["cores"] == 8
+    faithful = _section(md, "## Faithful Multi-GNN reproduction")
+    assert "the run may not have converged" in faithful  # best epoch 97 of 100
+    assert res["gnn"]["winner"]["pair"] == ["gnn_causal", "lgbm_graph"]
+    assert f"**Verdict: {res['gnn']['winner']['sentence']}.**" in md
+    json.dumps(res, allow_nan=False)
+
+
+def test_gap_numbers_equal_the_paired_model_differences(gnn_stage):
+    s = gnn_stage
+    res = _stage(s, "gap", gnn=s["gnn"])
+    gap = res["gnn"]["lookahead_gap"]
+    md_all = res["bootstrap"]["model_diffs"]
+    assert list(gap["metrics"]) == s["gnn"]["report_cfg"]["gap_metrics"]
+    pv = res["views"]["primary"]["models"]
+    for key, row in gap["metrics"].items():
+        for col, pair in (
+            ("gap_end", "gnn_lookahead - gnn_causal"),
+            ("gap_d10", "gnn_lookahead_d10 - gnn_causal"),
+        ):
+            iv = md_all[pair][key]
+            got = {k: row[col][k] for k in ("point", "lo", "hi")}
+            assert got == {k: iv[k] for k in ("point", "lo", "hi")}, (key, col)
+        # tail = end - d10 = -(d10 - end): point negated, CI bounds negated and swapped
+        iv = md_all["gnn_lookahead_d10 - gnn_lookahead"][key]
+        assert row["tail"]["point"] == pytest.approx(-iv["point"])
+        assert (row["tail"]["lo"], row["tail"]["hi"]) == (-iv["hi"], -iv["lo"])
+        for col in ("gap_end", "gap_d10", "tail"):
+            r = row[col]
+            assert r["significant"] == (r["lo"] > 0 or r["hi"] < 0)
+        part, metric = key.split(".", 1)
+        assert row["causal"]["mean"] == pv["gnn_causal"][part][metric]["mean"]
+    # Without the d10 model there is no gap section.
+    no_d10 = copy.deepcopy(s["gnn"])
+    no_d10["model_views"] = {}
+    del no_d10["summaries"]["gnn_lookahead_d10"]
+    dirs = {k: v for k, v in s["all_dirs"].items() if k != "gnn_lookahead_d10"}
+    res = _stage(s, "nod10", gnn=no_d10, dirs=dirs)
+    assert res["gnn"]["lookahead_gap"] is None
+    assert "Look-ahead gap" not in render_markdown(res)
+
+
+def test_faithful_section_band_verdict_and_convergence():
+    from aml.eval.report import faithful_section
+
+    report_cfg = _gnn_report_cfg()
+    # 40 test rows on day 9 and 10 on day 12. Sampled day-9 targets: TP 10, FP 5, FN 6 -> F1
+    # 20/31 = 64.5% (in the band); 4 unsampled positives on day 12 are scored low.
+    y = [1] * 16 + [0] * 24 + [1] * 4 + [0] * 6
+    s = [0.9] * 10 + [0.1] * 6 + [0.8] * 5 + [0.2] * 19 + [0.3] * 4 + [0.1] * 6
+    sampled = [True] * 40 + [False] * 4 + [True] * 6
+    day = [9] * 40 + [12] * 10
+    n = len(y)
+    ev = pl.DataFrame(
+        {
+            "row_id": [*range(n), 1000],
+            "split": ["test"] * n + ["val_late"],
+            "day": [*day, 8],
+            "y": [*y, 1],
+        }
+    )
+    scores = pl.DataFrame(
+        {"row_id": list(range(n)), "split": ["test"] * n, "score_s0": s, "sampled": sampled}
+    )
+    summary = {"epochs_run": 100, "max_epochs": 100, "best_epoch": 60, "batch_size": 8192}
+    views = {"primary": (9, 10), "full": (9, 18)}
+    out = faithful_section(ev, scores, summary, report_cfg, views=views)
+    assert out["f1_sampled_pct"] == pytest.approx(100 * 20 / 31)
+    assert out["verdict"] == "reproduced" and out["miss_pp"] == 0.0
+    full = out["views"]["full"]
+    assert full["sampled"]["rows"] == 46 and full["all"]["rows"] == 50
+    assert full["all"]["f1"] == pytest.approx(20 / (20 + 5 + 10))  # + 4 unsampled misses
+    assert full["sampled_share"] == pytest.approx(46 / 50)
+    assert out["views"]["primary"]["sampled"]["f1"] == pytest.approx(20 / 31)
+    assert out["may_not_have_converged"] is False
+    out = faithful_section(ev, scores, {**summary, "best_epoch": 95}, report_cfg, views=views)
+    assert out["may_not_have_converged"] is True
+    # Below the band: two more false positives among the sampled targets.
+    s2 = list(s)
+    s2[21:23] = [0.95, 0.95]  # two sampled negatives scored above 0.5
+    worse = scores.with_columns(score_s0=pl.Series(s2))
+    out = faithful_section(ev, worse, summary, report_cfg, views=views)
+    assert out["verdict"] == "not reproduced"
+    assert out["miss_pp"] == pytest.approx(100 * 20 / 33 - report_cfg["reproduced_band"][0])
+    with pytest.raises(ValueError, match="missing values"):
+        faithful_section(ev, scores.head(10), summary, report_cfg)
+    with pytest.raises(ValueError, match="sampled"):
+        faithful_section(ev, scores.drop("sampled"), summary, report_cfg)
+
+
+def _verdict_results(primary: tuple, secondary: tuple, reverse: bool = False) -> dict:
+    def iv(lo_hi: tuple) -> dict:
+        lo, hi = lo_hi
+        return {"point": (lo + hi) / 2, "lo": lo, "hi": hi, "undefined": 0}
+
+    diffs = {"a.recall": iv(primary), "literature.pr_auc": iv(secondary)}
+    if reverse:  # the bootstrap holds lgbm_graph - gnn_causal instead
+        diffs = {
+            k: {"point": -d["point"], "lo": -d["hi"], "hi": -d["lo"]} for k, d in diffs.items()
+        }
+    key = "lgbm_graph - gnn_causal" if reverse else "gnn_causal - lgbm_graph"
+    return {
+        "meta": {"models": {"lgbm_graph": {}, "gnn_causal": {}}, "headline_tag": "0p005"},
+        "bootstrap": {"level": 0.95, "model_diffs": {key: diffs}},
+    }
+
+
+WIN, LOSE, TIE = (0.01, 0.05), (-0.05, -0.01), (-0.02, 0.03)
+_ID = {WIN: "gnn", LOSE: "lgbm", TIE: "tie"}
+TIE_SENTENCE = (
+    "no significant difference; LightGBM-graph stays the served champion (cheaper to train, "
+    "µs serving)"
+)
+VERDICT_TABLE = [
+    (WIN, WIN, "gnn", "the causal GNN wins"),
+    (WIN, TIE, "gnn", "the causal GNN wins"),
+    (TIE, WIN, "gnn", "the causal GNN wins"),
+    (LOSE, LOSE, "lgbm", "LightGBM-graph wins"),
+    (LOSE, TIE, "lgbm", "LightGBM-graph wins"),
+    (TIE, LOSE, "lgbm", "LightGBM-graph wins"),
+    (TIE, TIE, "tie", TIE_SENTENCE),
+    (
+        WIN,
+        LOSE,
+        "mixed",
+        "mixed: the causal GNN is better on recall (a); LightGBM-graph is better on PR-AUC",
+    ),
+    (
+        LOSE,
+        WIN,
+        "mixed",
+        "mixed: LightGBM-graph is better on recall (a); the causal GNN is better on PR-AUC",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "primary, secondary, verdict, sentence",
+    VERDICT_TABLE,
+    ids=[f"{_ID[p]}-{_ID[s]}" for p, s, *_ in VERDICT_TABLE],
+)
+@pytest.mark.parametrize("reverse", [False, True])
+def test_winner_verdict_all_nine_combinations(primary, secondary, verdict, sentence, reverse):
+    from aml.eval.report import winner_verdict
+
+    w = winner_verdict(_verdict_results(primary, secondary, reverse), _gnn_report_cfg())
+    assert w["verdict"] == verdict and w["sentence"] == sentence
+    want = {WIN: "gnn", LOSE: "lgbm", TIE: "tie"}
+    assert w["metrics"]["a.recall"]["outcome"] == want[primary]
+    assert w["metrics"]["literature.pr_auc"]["outcome"] == want[secondary]
+    assert w["metrics"]["a.recall"]["lo"] == pytest.approx(primary[0])
+    assert w["level_matches"] is True
+
+
+def test_winner_verdict_edge_cases():
+    from aml.eval.report import verdict_of, winner_verdict
+
+    assert len({(p, s) for p, s, *_ in VERDICT_TABLE}) == 9
+    res = _verdict_results(WIN, WIN)
+    md = res["bootstrap"]["model_diffs"]["gnn_causal - lgbm_graph"]
+    md["a.recall"].update(lo=None, hi=None)  # an undefined CI is no evidence: a tie
+    w = winner_verdict(res, _gnn_report_cfg())
+    assert w["metrics"]["a.recall"]["outcome"] == "tie" and w["verdict"] == "gnn"
+    md["a.recall"].update(lo=0.0, hi=0.02)  # a CI touching 0 does not exclude it
+    assert winner_verdict(res, _gnn_report_cfg())["metrics"]["a.recall"]["outcome"] == "tie"
+    res["bootstrap"]["level"] = 0.9
+    assert winner_verdict(res, _gnn_report_cfg())["level_matches"] is False
+    del res["meta"]["models"]["lgbm_graph"]
+    assert winner_verdict(res, _gnn_report_cfg()) is None
+    with pytest.raises(ValueError):
+        verdict_of("gnn", "win")
+
+
+def test_report_hash_refusal(gnn_stage):
+    from aml.eval.report import check_report_hash
+
+    check_report_hash({"a": {"final": True, "report_hash": "h"}}, "h")
+    check_report_hash({"dev": {"final": False}}, "h")  # validation-only sets record none
+    with pytest.raises(ValueError, match="pre-registered `report` rules changed"):
+        check_report_hash({"a": {"final": True, "report_hash": "old"}}, "h")
+    with pytest.raises(ValueError, match="pre-registered"):
+        check_report_hash({"a": {"final": True}}, "h")  # a --final set must record it
+    s = gnn_stage
+    edited = copy.deepcopy(s["gnn"])
+    edited["report_cfg"]["winner_metrics"] = ["literature.pr_auc", "a.recall"]
+    with pytest.raises(ValueError, match="pre-registered `report` rules changed"):
+        _stage(s, "h", gnn=edited)
+    assert not (s["out"] / "h" / "results.md").exists()  # refused before evaluating
+    bad_views = {**s["gnn"], "model_views": {"gnn_lookahead_d10": ["tail"]}}
+    with pytest.raises(ValueError, match="model_views"):
+        _stage(s, "v", gnn=bad_views)
+
+
+def test_guard_totals_and_lines():
+    from aml.eval.report import guard_line, summary_guard
+
+    per_split = {"val_early": _guard(10), "test": {**_guard(5, dropped=2), "max_slack": -3}}
+    total = summary_guard({"guard": per_split})
+    assert total["edges_checked"] == 15 and total["dropped_target_copies"] == 2
+    assert total["max_slack"] == -1  # max over splits
+    assert summary_guard({"guard": _guard(7)})["edges_checked"] == 7  # already a total
+    assert summary_guard({}) is None
+    assert guard_line("gnn_pna", {"guard": per_split}) == (
+        "gnn_pna: 0 violations over 15 sampled edges; 0 target hits (2 sampled copies of the "
+        "target dropped)."
+    )
+    assert guard_line("gnn_pna", {}) == "gnn_pna: no guard totals in its summary.json."
+    bad = {"guard": {"test": {**_guard(5), "violations": 2, "target_hits": 1}}}
+    assert guard_line("gnn_causal", bad).startswith("gnn_causal: 2 violations over 5")
+
+
+def test_share_text_orders_splits_and_handles_missing_shares():
+    """Summaries store sorted keys; the gap and faithful lines list splits in split order, and a
+    split without sampled edges (share None) reads n/a, not 'n/a%'."""
+    from aml.eval.report import NA, _share_text
+
+    shares = {"test": 0.5, "train": 0.25, "val_late": None, "val_early": 0.125, "zz": 1.0}
+    assert _share_text(shares) == (
+        f"train 25.0%, val_early 12.5%, val_late {NA}, test 50.0%, zz 100.0%"
+    )
+    assert _share_text({}) == NA and _share_text(None) == NA

@@ -17,6 +17,7 @@ from modal_jobs.common import (
     all_keys,
     cpu_job,
     data_paths,
+    export_inputs,
     jsonable,
     load_all_configs,
     print_summary,
@@ -57,7 +58,7 @@ def export(cfgs: dict, keys: dict) -> dict:
     bundle_dir = paths.serving_dir
     # Opened before compute: a failed attempt shows up as a FAILED run (and in the cost window).
     with tracking.start_run_for_key(APP_NAME, keys["export"], run_name=keys["export"]):
-        tracking.log_params_flat({"keys": keys, "serving": cfgs["serving"]})
+        tracking.log_params_flat({"keys": keys, "serving": export_inputs(cfgs)})
         tracking.log_params_flat({"features_verify": verified})
         mlflow.set_tags({"data_version": str(version)})
         summary = jsonable(

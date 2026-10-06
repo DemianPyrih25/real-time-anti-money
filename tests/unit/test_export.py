@@ -1,10 +1,11 @@
 """The serving bundle (M2 spec §8.6) on the synthetic fixture, with the real engine.
 
 The features come from a real `run_build_features`. The rules_engine and lgbm_graph stage outputs
-are built here in their documented layouts (thresholds.json / flags.parquet as M1's rules stage
-writes them; booster_s0.txt, scores.parquet, feature_names.json, gate.json, summary.json as the
-lgbm_graph stage writes them), so the bundle's own checks can be steered (tampered references,
-other data, other feature tables). tests/test_pipeline_m2_e2e.py exports the real stages' outputs.
+are built in their documented layouts by tests/fixtures/serving_bundle.py (thresholds.json /
+flags.parquet as M1's rules stage writes them; booster_s0.txt, scores.parquet,
+feature_names.json, gate.json, summary.json as the lgbm_graph stage writes them), so the bundle's
+own checks can be steered (tampered references, other data, other feature tables).
+tests/test_pipeline_m2_e2e.py exports the real stages' outputs.
 """
 
 from __future__ import annotations
@@ -13,14 +14,12 @@ import copy
 import json
 import math
 import shutil
-from pathlib import Path
 
 import lightgbm as lgb
 import numpy as np
 import polars as pl
 import pytest
 
-from aml.config import rate_tag
 from aml.eval.operating_points import threshold_for_alert_rate
 from aml.features import build
 from aml.features.spec import (
@@ -31,109 +30,12 @@ from aml.features.spec import (
     scan_feature_table,
 )
 from aml.io import read_json, write_json_atomic, write_parquet_atomic
-from aml.models.lgbm import load_labels, predict, save_booster
+from aml.models.lgbm import load_labels
 from aml.paths import DataPaths
-from aml.rules.sql_baseline import SCENARIOS, apply_thresholds
+from aml.rules.sql_baseline import SCENARIOS
 from aml.serving import bundle
 from tests.conftest import load_yaml
-
-NAMES = [
-    "log_amount_usd",
-    "payment_format",
-    "hour_of_day",
-    "u_out_cnt_1d",
-    "v_in_cnt_1d",
-    "u_out_mean_1d",
-]
-RULE_THRESHOLDS = {  # rate -> fan_in_velocity threshold (other scenarios off)
-    0.005: 3.0,
-    0.001: 5.0,
-    0.01: 2.0,
-}
-KEYS = {"data": "data-t", "features": "features-t", "lgbm_graph": "lgbm_graph-t", "export": "e"}
-
-
-# --- stage outputs in their documented layouts ---------------------------------------------------
-
-
-def make_rules_dir(features_dir: Path, out: Path) -> dict:
-    """thresholds.json + flags.parquet in the M1 rules-stage layout, from the part severities."""
-    sev = scan_feature_table(features_dir, ["row_id", "split", "day", *SEVERITY_COLUMNS]).collect()
-    tags = [rate_tag(r) for r in RULE_THRESHOLDS]
-    thresholds = {
-        rate_tag(r): {s: (t if s == "fan_in_velocity" else None) for s in SCENARIOS}
-        for r, t in RULE_THRESHOLDS.items()
-    }
-    head = tags[0]
-    fired = apply_thresholds(sev, thresholds[head])
-    flags = sev.select("row_id", "split", "day").with_columns(
-        *[apply_thresholds(sev, thresholds[t])["any"].alias(f"rules_any_{t}") for t in tags],
-        *[fired[f"fired_{s}"] for s in SCENARIOS],
-    )
-    write_parquet_atomic(flags, out / "flags.parquet")
-    doc = {"headline_rate_tag": head, "rate_tags": tags, "thresholds": thresholds}
-    write_json_atomic(doc, out / "thresholds.json")
-    spec_hash = build.load_spec(features_dir).spec_hash()
-    write_json_atomic({"rows": sev.height, "spec_hash": spec_hash}, out / "summary.json")
-    return doc
-
-
-def make_graph_dir(paths: DataPaths, features_dir: Path, out: Path) -> lgb.Booster:
-    """A small LightGBM on float32 model inputs, early-stopped on val_early, and its scores."""
-    t = scan_feature_table(features_dir, ["row_id", "split", *NAMES]).collect()
-    tr, va = t.filter(pl.col("split") == "train"), t.filter(pl.col("split") == "val_early")
-    params = {
-        "objective": "binary",
-        "num_leaves": 7,
-        "learning_rate": 0.1,
-        "min_data_in_leaf": 5,
-        "verbose": -1,
-        "deterministic": True,
-        "force_row_wise": True,
-        "seed": 0,
-        "num_threads": 2,
-        "metric": "average_precision",
-    }
-
-    def ds(df: pl.DataFrame, ref=None) -> lgb.Dataset:
-        y = load_labels(paths.labels, df["row_id"])
-        x = df.select(NAMES).to_numpy().astype(np.float32)
-        return lgb.Dataset(
-            x, y, feature_name=NAMES, categorical_feature=["payment_format"], reference=ref
-        )
-
-    dtr = ds(tr)
-    booster = lgb.train(
-        params,
-        dtr,
-        num_boost_round=40,
-        valid_sets=[ds(va, dtr)],
-        callbacks=[lgb.early_stopping(5, verbose=False)],
-    )
-    save_booster(booster, out / "booster_s0.txt")
-    scored = t.filter(pl.col("split").is_in(["val_early", "val_late", "test"]))
-    x = scored.select(NAMES).to_numpy().astype(np.float32)
-    scores = scored.select("row_id", "split").with_columns(
-        pl.Series("score_s0", predict(booster, x, threads=2)),
-        pl.Series("score_s1", predict(booster, x, threads=1) * 0.5),
-    )
-    write_parquet_atomic(scores, out / "scores.parquet")
-    write_json_atomic(NAMES, out / "feature_names.json")
-    write_json_atomic({"kept": NAMES, "dropped": []}, out / "gate.json")
-    spec_hash = build.load_spec(features_dir).spec_hash()
-    summary = {"variant": "full", "ablation": {"champion": "full"}, "spec_hash": spec_hash}
-    write_json_atomic(summary, out / "summary.json")  # the lgbm_graph stage's layout
-    return booster
-
-
-def make_inputs(paths: DataPaths, features_dir: Path, root: Path) -> dict:
-    rules_dir, graph_dir = root / "rules_engine" / "k", root / "lgbm_graph" / "k"
-    rules = make_rules_dir(features_dir, rules_dir)
-    make_graph_dir(paths, features_dir, graph_dir)
-    for d in (features_dir, rules_dir, graph_dir):
-        write_json_atomic({"data_version": "v1"}, d / "data_version.json")
-    return {"features_dir": features_dir, "rules_dir": rules_dir, "graph_dir": graph_dir, **rules}
-
+from tests.fixtures.serving_bundle import KEYS, NAMES, make_inputs
 
 # --- fixtures ----------------------------------------------------------------------------------
 
@@ -417,3 +319,39 @@ def test_snapshot_header_reader(tmp_path):
     hb = json.dumps({"next_rank": 5}).encode()
     p.write_bytes(bundle.MAGIC + len(hb).to_bytes(4, "little") + hb + b"payload")
     assert bundle.read_snapshot_header(p) == {"next_rank": 5}
+
+
+def test_compare_outputs_and_reference_slice(world, paths):
+    """The extracted check `_verify` (and M5's online parity) uses: zero on the verified bundle's
+    own outputs, one row per flipped bit, and a subrange that is the same rows of the slice."""
+    d = paths.serving_dir
+    n = read_json(d / bundle.METADATA_FILE)["rows"]["slice"]
+    refs = bundle.reference_slice(d, 0, n)
+    ref = refs["ref_features"]
+    assert ref.height == n and refs["names"] == NAMES
+    outs = {
+        "x32": ref.select(NAMES).to_numpy().astype(np.float32),
+        "sev": ref.select(SEVERITY_COLUMNS).to_numpy().astype(np.float64),
+        "trunc": ref.select(TRUNC_COLUMNS).to_numpy(),
+        "p": refs["ref_scores"][bundle.SCORE].to_numpy().astype(np.float64),
+        "row_id": ref["row_id"],
+    }
+    assert bundle.compare_outputs(**outs, **refs) == dict.fromkeys(bundle.CHECKS, 0)
+
+    lo, m = 3, min(5, n - 3)
+    sub = bundle.reference_slice(d, lo, m)
+    for k in ("ref_features", "ref_scores", "ref_alerts"):
+        assert sub[k].equals(refs[k].slice(lo, m)), k
+    part = {k: v[lo : lo + m] for k, v in outs.items()}
+    assert bundle.compare_outputs(**part, **sub) == dict.fromkeys(bundle.CHECKS, 0)
+
+    p = outs["p"].copy()
+    p.view(np.uint64)[1] ^= np.uint64(1)  # the last mantissa bit of one score
+    got = bundle.compare_outputs(**{**outs, "p": p}, **refs)
+    assert got["scores"] == 1 and got["features"] == got["severities"] == 0
+    x = outs["x32"].copy()
+    x.view(np.uint32)[2, 0] ^= np.uint32(1)
+    got = bundle.compare_outputs(**{**outs, "x32": x}, **refs)
+    assert got["features"] == 1 and got["scores"] == 0
+    with pytest.raises(bundle.BundleVerificationError, match="reference rows"):
+        bundle.compare_outputs(**{**outs, "row_id": ref["row_id"].reverse()}, **refs)

@@ -1,0 +1,69 @@
+{% extends "base.html.j2" %}
+{# /cases: the newest cased alerts grouped by case_key (subject account and simulated day), as
+   aml.serving.alerts.list_cases returns them. Variables: groups, n_cases, n_listed, limit,
+   before_row, older (the row_id for the next page, or none). #}
+{% block title %}Cases · AML scorer{% endblock %}
+
+{% block header %}
+<header class="top wrap">
+  <div class="eyebrow">AML streaming scorer &middot; case packs</div>
+  <h1>Cases</h1>
+  <p class="lede">{{ n_cases }} alert{{ "" if n_cases == 1 else "s" }} with a case pack, grouped by
+    subject account and simulated day (the case key), newest first.
+    {% if before_row is not none %}This page lists alerts older than alert row {{ before_row }}.{% endif %}</p>
+  <div class="chips">
+    {% if before_row is not none %}<a class="chip" href="/cases">&larr; Newest</a>{% endif %}
+    <span class="chip">listed <b>{{ n_listed }}</b></span>
+    <a class="chip" href="/alerts">alerts (JSON)</a>
+    <a class="chip" href="/health">health</a>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<main class="wrap">
+  <section aria-label="Cases">
+    {% if not groups %}
+    <div class="callout"><b>No cases here yet.</b> The scorer writes one case pack per alert as the
+      stream runs; reload this page later.</div>
+    {% endif %}
+    <div class="grid">
+      {% for g in groups %}
+      <article class="card s12" id="case-{{ g['case_key'] }}">
+        <div class="card-h">
+          <div>
+            <h3>Account <span class="mono">{{ g["subject"] }}</span> &middot; day {{ g["day"] }}</h3>
+            <p class="sub">Case <span class="mono">{{ g["case_key"] }}</span> &middot;
+              {{ g["alerts"]|length }} alert{{ "" if g["alerts"]|length == 1 else "s" }} on this page</p>
+          </div>
+        </div>
+        <div class="tablewrap">
+          <table class="data">
+            <thead><tr><th>Case page</th><th>Time</th><th>Counterparty</th><th>Amount (USD)</th>
+              <th class="l">Format</th><th>Score</th><th class="l">Typology</th><th class="l">Rules fired</th></tr></thead>
+            <tbody>
+              {% for a in g["alerts"] %}
+              <tr>
+                <td><a href="/cases/{{ a['row_id'] }}">row {{ a["row_id"] }}</a></td>
+                <td>{{ a["time"] }}</td>
+                <td class="mono">{{ a["counterparty"] }}</td>
+                <td>{{ a["amount_usd"]|money }}</td>
+                <td class="l">{{ a["payment_format"] }}</td>
+                <td>{{ a["score"]|prob }}</td>
+                <td class="l">{{ a["typology"] }}</td>
+                <td class="l">{{ a["rules_fired"]|join(", ") if a["rules_fired"] else "none" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% if older is not none %}
+    <p class="chips"><a class="chip" href="/cases?before_row={{ older }}&amp;limit={{ limit }}">Older alerts &rarr;</a></p>
+    {% endif %}
+  </section>
+  <footer class="end">Account ids are synthetic. Each row links to its case page; add .json for the raw pack.</footer>
+</main>
+{% endblock %}

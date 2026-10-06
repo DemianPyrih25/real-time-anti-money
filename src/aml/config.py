@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-CONFIG_NAMES = ("data", "rules", "lgbm", "features", "serving")
+CONFIG_NAMES = ("data", "rules", "lgbm", "features", "serving", "gnn")
 
 
 def load_config(name: str, config_dir: Path) -> dict[str, Any]:

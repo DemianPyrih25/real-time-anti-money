@@ -1,0 +1,120 @@
+# Causal Multi-GINe+EU on a Modal GPU (PLAN.md §6 M3). (R) = recalled from the public Multi-GNN
+# code, not verified (the paper does not state it); every (R) value is listed in the README.
+# Validated by aml.models.gnn.check_gnn_cfg. Run keys (modal_jobs/common.py) hash graph, sampler,
+# model, train, hpo and protocols; runtime, budget, report and bench never re-key a training run.
+graph:
+  edge_attr_columns: gnn_edge_attr          # exactly EngineSpec.gnn_edge_attr_names (18 columns)
+  categorical: [payment_currency, receiving_currency, payment_format]   # nn.Embedding(code + 1)
+  log1p: [u_out_gap, u_in_gap, v_in_gap, v_out_gap, pair_gap, rev_pair_gap]
+  zscore: [log_amount_usd, hour_of_day, out_port, in_port,
+           u_out_gap, u_in_gap, v_in_gap, v_out_gap, pair_gap, rev_pair_gap]
+  # the 5 flags (cross_currency, self_loop, same_bank, round_amount, pair_is_new) pass as is
+  norm_split: train                         # mean/std fitted on train rows only (PLAN §4)
+  std_floor: 1.0e-6
+sampler:
+  fanout: [25, 10]                          # per direction (to, rev_to), per hop (PLAN §6)
+  temporal_strategy: last
+  ego: account                              # M3 spec §5.4
+  batch_size: 2048                          # DECIDED by gnn_bench (lead copies decision.json)
+  eval_batch_size: 8192
+  max_edges_per_step: 4215261               # DECIDED by gnn_bench (L4 stress batch, 3,368 B/edge)
+  max_edges_per_eval_step: 12090605         # DECIDED by gnn_bench (1,174 B/edge in eval)
+  eval_cache_max_gb: 4.0
+model:
+  conv: gine
+  hidden: 64                                # App. F.5: size of the Table-5 runtime models (V);
+                                            # Table-2 size not stated; Multi-GNN tuned GIN 66 (R)
+  layers: 2                                 # App. F.5 runtime-table models (V)
+  layer_dropout: 0.0098                     # (R) value; placement after the residual: ours
+  readout_hidden: [50, 25]                  # (R)
+  edge_updates: true
+  batch_norm: true                          # (R)
+train:
+  neg_rate: 0.1                             # fixed before gnn_bench (PLAN §6)
+  w_pos: 6.275                              # (R) positive weight, full-data units; HPO trial 0
+  lr: 0.006213                              # (R) Adam, constant, no weight decay; HPO trial 0
+  final_dropout: 0.1053                     # (R) HPO trial 0
+  max_epochs: 30
+  min_epochs: 5
+  patience: 6                               # early stopping on val_early PR-AUC
+  deterministic: true                       # use_deterministic_algorithms(True, warn_only=True)
+  matmul_precision: high                    # TF32 on L4 (COST_NOTES); fp32 on T4
+hpo:
+  n_trials: 8                               # cut 2: 4 (then effectively random search)
+  max_epochs: 15
+  n_startup_trials: 3
+  pruner: {n_startup_trials: 3, n_warmup_steps: 3}
+  sampler_seed_base: 1000                   # TPESampler(seed = base + trial number), per trial
+  model_seed: 0                             # every trial; common random numbers
+  space:
+    lr: {low: 0.002, high: 0.02, log: true}
+    final_dropout: {low: 0.0, high: 0.3}
+    w_pos: {low: 2.0, high: 20.0, log: true}
+protocols:
+  causal: {seeds: [0, 1, 2, 3, 4]}
+  lookahead: {seeds: [0, 1, 2], test_bounds: [end, d10]}      # cut 3: seeds [0]
+  pna:                                      # cut 1; hidden from PLAN; towers / lr / dropouts /
+                                            # w_pos (R); deg histograms ours (full train graph,
+                                            # per direction; Multi-GNN recalled: one sampled
+                                            # train batch, directions pooled)
+    seeds: [0, 1, 2]
+    hidden: 20
+    towers: 5
+    lr: 0.000612
+    layer_dropout: 0.108
+    final_dropout: 0.111
+    w_pos: 7.08
+  faithful:
+    seed: 0
+    fanout: [100, 100]                      # 100 one- and two-hop (App. F.4, V); per edge type,
+                                            # uniform, non-disjoint (R)
+    batch_size: 8192                        # (R) Multi-GNN CLI default (PLAN); App. C: reverse
+                                            # MP needed a smaller batch (value unstated);
+                                            # DECIDED OOM fallback 4096 -> 2048
+    max_epochs: 100                         # (R); no early stopping
+    epoch_cap: null                         # set only by the cost gate (documented deviation)
+    lr: 0.006213                            # (R)
+    w_pos: 6.275                            # (R)
+    layer_dropout: 0.0098                   # (R)
+    final_dropout: 0.1053                   # (R)
+    edge_features: [timestamp, amount_received, receiving_currency, payment_format,
+                    mg_in_port, mg_out_port]                  # (R)
+    norm: per_snapshot                      # (R) the second, confined exemption
+    reverse_self_loops: true                # flip of all edges (R)
+bench:
+  gpus: [L4, T4]
+  batch_sizes: [2048, 4096]
+  num_workers: [3, 7]
+  warmup_steps: 5
+  timed_steps: 30
+  lookahead: {timed_steps: 10, val_batches: 20}
+  faithful: {warmup_steps: 3, timed_steps: 10, val_batches: 20, test_batches: 5,
+             batch_fallback: [8192, 4096, 2048]}
+  pna: {warmup_steps: 5, timed_steps: 20}
+  memory_fraction: 0.6                      # stress-batch memory <= 60% of device memory
+  rerun_4core_if_wait_below: 0.10           # sampler wait share of the step at 3 workers
+  tie_band: 0.05                            # within 5% $/epoch: prefer L4, then batch 2048
+runtime:                                    # NOT keyed: hardware; lead copies decision.json
+  gpu: L4
+  cpu: 4
+  memory_mib: 32768
+  num_workers: 3
+  loader_timeout_s: 120
+  chunk_wall_s: 7200                        # max planned GPU wall per worker call
+  wall_guard_factor: 1.5
+budget:                                     # NOT keyed
+  m3_cap_usd: 20.0
+  workspace_budget_usd: 30.0
+  m6_reserve_usd: 1.0
+  overhead: 1.3
+  dev_allowance_usd: 0.05                   # added to the measured M3 spend: the dev apps'
+                                            # (runner, T4 smoke) unreported last hour; their
+                                            # billed hours count via costplan.M3_APPS
+report:                                     # PRE-REGISTERED: commit before any --final run
+  winner_pair: [gnn_causal, lgbm_graph]
+  winner_metrics: [a.recall, literature.pr_auc]   # primary, secondary (M3 spec §13.4)
+  gap_metrics: [literature.f1_thr, literature.f1_argmax, literature.pr_auc]
+  ci_level: 0.95
+  reproduced_band: [62.35, 67.23]           # 64.79 ± 2 × 1.22 (Egressy et al. Table 2, V)
+  published_f1: 64.79
+  published_std: 1.22

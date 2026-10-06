@@ -735,7 +735,7 @@ def test_config_files():
     assert f["budgets"]["rule_visits"] > 1084**2  # never hit on HI-Small (max in-degree 1,084)
     assert f["snapshots"]["boundaries"] == ["val_early", "test"]
     assert f["memory_target_mb"] == 1000 and f["bench"]["last_day"] == 3
-    assert _yaml("serving.yaml") == {"replay": {"max_events": 100000}}
+    assert _yaml("serving.yaml")["replay"] == {"max_events": 100000}
     g = _yaml("lgbm.yaml")["graph"]
     assert set(g) == {"optuna", "gate", "ablation", "shap"}
     assert g["gate"]["min_train_nonzero"] == 100 and g["ablation"]["margin_std"] == 2.0

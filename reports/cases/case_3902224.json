@@ -1,0 +1,572 @@
+{
+  "pack_format": 1,
+  "id": 3902224,
+  "case_key": "235309-d9",
+  "rank": 4419439,
+  "who": {
+    "subject": {
+      "account": 235309,
+      "bank": "01522"
+    },
+    "counterparty": {
+      "account": 222097,
+      "bank": "014325"
+    }
+  },
+  "what": {
+    "amount_usd": 14246.13,
+    "amount_paid": 14246.13,
+    "payment_format": "ACH",
+    "payment_currency": "US Dollar",
+    "receiving_currency": "US Dollar"
+  },
+  "when": {
+    "day": 9,
+    "time": "07:08",
+    "minute": 11948
+  },
+  "where": {
+    "from_bank": "01522",
+    "to_bank": "014325",
+    "cross_bank": true
+  },
+  "why": {
+    "score": 0.985385387423668,
+    "calibrated": 1.0,
+    "threshold": 0.022294557644632167,
+    "rate_tag": "0p005",
+    "rules_fired": [],
+    "drivers": [
+      {
+        "feature": "payment_format",
+        "value": 0.0,
+        "display": "ACH",
+        "contribution": 3.408801357849698
+      },
+      {
+        "feature": "in_port",
+        "value": 2.1972246170043945,
+        "display": "2.197",
+        "contribution": 2.198055601248101
+      },
+      {
+        "feature": "log_amount_usd",
+        "value": 9.564311027526855,
+        "display": "9.564",
+        "contribution": 1.6243126378922832
+      },
+      {
+        "feature": "pair_is_new",
+        "value": 1.0,
+        "display": "1",
+        "contribution": 1.2349306043457444
+      },
+      {
+        "feature": "v_in_gap",
+        "value": 235.0,
+        "display": "235",
+        "contribution": 1.1295880875390516
+      }
+    ],
+    "base_value": -10.743759549895113,
+    "others_contribution": 5.359082192360146,
+    "log_odds": 4.211010931339912,
+    "typology": {
+      "label": "FAN-IN",
+      "model": "tree",
+      "evidence": [
+        "u_out_newcp_1d = 0 <= 0.5",
+        "the receiver was paid by 7 distinct accounts in the case subgraph (g_dst_in_deg = 7 > 2.5)",
+        "v_in_same_fmt_1d = 5 <= 5.5",
+        "v_in_mean_3d = 8.51 > 8.078",
+        "v_in_mean_3d = 8.51 <= 9.698",
+        "72% of 60 validation cases at this leaf were FAN-IN"
+      ],
+      "features": {
+        "log_amount_usd": 9.564311027526855,
+        "payment_currency": 12.0,
+        "receiving_currency": 12.0,
+        "cross_currency": 0.0,
+        "payment_format": 0.0,
+        "self_loop": 0.0,
+        "same_bank": 0.0,
+        "round_amount": 0.0,
+        "hour_of_day": 7.0,
+        "u_out_cnt_1d": 0.0,
+        "u_out_cnt_3d": 0.0,
+        "u_out_uniq_1d": 0.0,
+        "u_out_uniq_3d": 0.0,
+        "u_in_cnt_1d": 0.0,
+        "u_in_cnt_3d": 0.0,
+        "u_in_uniq_1d": 0.0,
+        "u_in_uniq_3d": 0.0,
+        "v_in_cnt_1d": 6.0,
+        "v_in_uniq_1d": 6.0,
+        "v_in_uniq_3d": 7.0,
+        "v_out_cnt_1d": 3.0,
+        "v_out_cnt_3d": 7.0,
+        "v_out_uniq_1d": 2.0,
+        "v_out_uniq_3d": 2.0,
+        "u_out_sum_1d": 0.0,
+        "u_out_sum_3d": 0.0,
+        "u_in_sum_1d": 0.0,
+        "u_in_sum_3d": 0.0,
+        "v_in_sum_1d": 10.650100708007812,
+        "v_in_sum_3d": 11.42519760131836,
+        "v_out_sum_1d": 9.306390762329102,
+        "v_out_sum_3d": 10.114810943603516,
+        "u_out_mean_1d": null,
+        "u_out_mean_3d": null,
+        "v_in_mean_1d": 8.050482749938965,
+        "v_in_mean_3d": 8.50955867767334,
+        "u_out_std_1d": null,
+        "u_out_std_3d": null,
+        "v_in_std_1d": 1.428726077079773,
+        "v_in_std_3d": 1.1312181949615479,
+        "u_out_max_1d": null,
+        "v_in_max_1d": 9.739827156066895,
+        "u_amt_dev_1d": null,
+        "v_amt_dev_1d": 1.5138278007507324,
+        "pair_cnt_1d": 0.0,
+        "u_inflow_12h": 0.0,
+        "pt_ratio_12h": null,
+        "u_bal_3d": null,
+        "v_bal_3d": -0.5751655697822571,
+        "pair_is_new": 1.0,
+        "out_port": 0.6931471824645996,
+        "in_port": 2.1972246170043945,
+        "u_out_gap": 4320.0,
+        "u_in_gap": 4320.0,
+        "v_in_gap": 235.0,
+        "v_out_gap": 966.0,
+        "pair_gap": 0.0,
+        "rev_pair_gap": 0.0,
+        "cyc2_2d": 0.0,
+        "sg_mids_1d": 0.0,
+        "sg_srcs_1d": 0.0,
+        "gs_u_1d": 0.0,
+        "gs_v_1d": 2.0,
+        "in_band": 0.0,
+        "u_out_inband_1d": 0.0,
+        "u_out_round_1d": 0.0,
+        "u_out_newcp_1d": 0.0,
+        "u_out_fmt_ach_1d": 0.0,
+        "u_out_fmt_bitcoin_1d": 0.0,
+        "u_out_fmt_cash_1d": 0.0,
+        "u_out_fmt_cheque_1d": 0.0,
+        "u_out_fmt_credit_card_1d": 0.0,
+        "u_out_fmt_reinvestment_1d": 0.0,
+        "u_out_fmt_wire_1d": 0.0,
+        "v_in_same_fmt_1d": 5.0,
+        "cyc3_2d": 0.0,
+        "cyc4_2d": 0.0,
+        "g_src_out_deg": 0,
+        "g_src_in_deg": 0,
+        "g_dst_in_deg": 7,
+        "g_dst_out_deg": 2,
+        "g_common_sinks": 0,
+        "g_cycle_back": 0,
+        "g_n_nodes": 17,
+        "g_n_edges": 38
+      }
+    }
+  },
+  "how": {
+    "subgraph": {
+      "nodes": [
+        {
+          "id": 235309,
+          "role": "subject"
+        },
+        {
+          "id": 222097,
+          "role": "counterparty"
+        },
+        {
+          "id": 4,
+          "role": "other"
+        },
+        {
+          "id": 6969,
+          "role": "other"
+        },
+        {
+          "id": 22163,
+          "role": "other"
+        },
+        {
+          "id": 111748,
+          "role": "other"
+        },
+        {
+          "id": 140689,
+          "role": "other"
+        },
+        {
+          "id": 196424,
+          "role": "other"
+        },
+        {
+          "id": 219517,
+          "role": "other"
+        },
+        {
+          "id": 231666,
+          "role": "other"
+        },
+        {
+          "id": 245047,
+          "role": "other"
+        },
+        {
+          "id": 251461,
+          "role": "other"
+        },
+        {
+          "id": 270945,
+          "role": "other"
+        },
+        {
+          "id": 320680,
+          "role": "other"
+        },
+        {
+          "id": 326285,
+          "role": "other"
+        },
+        {
+          "id": 384880,
+          "role": "other"
+        },
+        {
+          "id": 476952,
+          "role": "other"
+        },
+        {
+          "id": 515076,
+          "role": "other"
+        }
+      ],
+      "edges": [
+        {
+          "src": 235309,
+          "dst": 222097,
+          "minute": 11948,
+          "amount_usd": 14246.13,
+          "kind": "alert",
+          "rank": 4419439
+        },
+        {
+          "src": 222097,
+          "dst": 251461,
+          "minute": 8460,
+          "amount_usd": 2211.52,
+          "kind": "history",
+          "rank": 3191087
+        },
+        {
+          "src": 222097,
+          "dst": 251461,
+          "minute": 8477,
+          "amount_usd": 4637.52,
+          "kind": "history",
+          "rank": 3196509
+        },
+        {
+          "src": 222097,
+          "dst": 251461,
+          "minute": 9258,
+          "amount_usd": 4637.52,
+          "kind": "history",
+          "rank": 3464471
+        },
+        {
+          "src": 222097,
+          "dst": 251461,
+          "minute": 9266,
+          "amount_usd": 2211.52,
+          "kind": "history",
+          "rank": 3467005
+        },
+        {
+          "src": 4,
+          "dst": 222097,
+          "minute": 9554,
+          "amount_usd": 5754.48,
+          "kind": "history",
+          "rank": 3560967
+        },
+        {
+          "src": 4,
+          "dst": 222097,
+          "minute": 9557,
+          "amount_usd": 10713.57,
+          "kind": "history",
+          "rank": 3561904
+        },
+        {
+          "src": 515076,
+          "dst": 270945,
+          "minute": 9567,
+          "amount_usd": 383.32,
+          "kind": "history",
+          "rank": 3565366
+        },
+        {
+          "src": 4,
+          "dst": 222097,
+          "minute": 10205,
+          "amount_usd": 5754.48,
+          "kind": "history",
+          "rank": 3786593
+        },
+        {
+          "src": 4,
+          "dst": 222097,
+          "minute": 10216,
+          "amount_usd": 10713.57,
+          "kind": "history",
+          "rank": 3790070
+        },
+        {
+          "src": 515076,
+          "dst": 270945,
+          "minute": 10238,
+          "amount_usd": 383.32,
+          "kind": "history",
+          "rank": 3797470
+        },
+        {
+          "src": 140689,
+          "dst": 222097,
+          "minute": 10532,
+          "amount_usd": 16952.33,
+          "kind": "history",
+          "rank": 3892935
+        },
+        {
+          "src": 270945,
+          "dst": 270945,
+          "minute": 10806,
+          "amount_usd": 16980.17,
+          "kind": "history",
+          "rank": 3981769
+        },
+        {
+          "src": 270945,
+          "dst": 222097,
+          "minute": 10806,
+          "amount_usd": 16979.61,
+          "kind": "history",
+          "rank": 3981770
+        },
+        {
+          "src": 231666,
+          "dst": 6969,
+          "minute": 10942,
+          "amount_usd": 575.17,
+          "kind": "history",
+          "rank": 4026528
+        },
+        {
+          "src": 222097,
+          "dst": 251461,
+          "minute": 10960,
+          "amount_usd": 2211.52,
+          "kind": "history",
+          "rank": 4032213
+        },
+        {
+          "src": 222097,
+          "dst": 251461,
+          "minute": 10965,
+          "amount_usd": 4637.52,
+          "kind": "history",
+          "rank": 4033823
+        },
+        {
+          "src": 222097,
+          "dst": 219517,
+          "minute": 10982,
+          "amount_usd": 4158.11,
+          "kind": "history",
+          "rank": 4039244
+        },
+        {
+          "src": 6969,
+          "dst": 6969,
+          "minute": 11018,
+          "amount_usd": 444.63,
+          "kind": "history",
+          "rank": 4051287
+        },
+        {
+          "src": 6969,
+          "dst": 222097,
+          "minute": 11018,
+          "amount_usd": 444.61,
+          "kind": "history",
+          "rank": 4051288
+        },
+        {
+          "src": 245047,
+          "dst": 222097,
+          "minute": 11070,
+          "amount_usd": 4787.29,
+          "kind": "history",
+          "rank": 4068365
+        },
+        {
+          "src": 219517,
+          "dst": 320680,
+          "minute": 11112,
+          "amount_usd": 14764800.68,
+          "kind": "history",
+          "rank": 4081988
+        },
+        {
+          "src": 219517,
+          "dst": 320680,
+          "minute": 11126,
+          "amount_usd": 15664671.3,
+          "kind": "history",
+          "rank": 4086604
+        },
+        {
+          "src": 196424,
+          "dst": 196424,
+          "minute": 11140,
+          "amount_usd": 2385.87,
+          "kind": "history",
+          "rank": 4091120
+        },
+        {
+          "src": 196424,
+          "dst": 222097,
+          "minute": 11140,
+          "amount_usd": 2384.81,
+          "kind": "history",
+          "rank": 4091121
+        },
+        {
+          "src": 4,
+          "dst": 4,
+          "minute": 11194,
+          "amount_usd": 2226.36,
+          "kind": "history",
+          "rank": 4108882
+        },
+        {
+          "src": 4,
+          "dst": 4,
+          "minute": 11195,
+          "amount_usd": 891.25,
+          "kind": "history",
+          "rank": 4109207
+        },
+        {
+          "src": 231666,
+          "dst": 6969,
+          "minute": 11558,
+          "amount_usd": 575.17,
+          "kind": "history",
+          "rank": 4246233
+        },
+        {
+          "src": 231666,
+          "dst": 6969,
+          "minute": 11574,
+          "amount_usd": 1923.71,
+          "kind": "history",
+          "rank": 4253351
+        },
+        {
+          "src": 219517,
+          "dst": 22163,
+          "minute": 11583,
+          "amount_usd": 471.53,
+          "kind": "history",
+          "rank": 4257114
+        },
+        {
+          "src": 219517,
+          "dst": 22163,
+          "minute": 11596,
+          "amount_usd": 2439.34,
+          "kind": "history",
+          "rank": 4262761
+        },
+        {
+          "src": 476952,
+          "dst": 222097,
+          "minute": 11713,
+          "amount_usd": 647.19,
+          "kind": "history",
+          "rank": 4314966
+        },
+        {
+          "src": 251461,
+          "dst": 111748,
+          "minute": 11791,
+          "amount_usd": 2150.03,
+          "kind": "history",
+          "rank": 4349276
+        },
+        {
+          "src": 251461,
+          "dst": 111748,
+          "minute": 11813,
+          "amount_usd": 2609.0,
+          "kind": "history",
+          "rank": 4359080
+        },
+        {
+          "src": 4,
+          "dst": 4,
+          "minute": 11823,
+          "amount_usd": 2226.36,
+          "kind": "history",
+          "rank": 4363456
+        },
+        {
+          "src": 4,
+          "dst": 4,
+          "minute": 11831,
+          "amount_usd": 891.25,
+          "kind": "history",
+          "rank": 4367054
+        },
+        {
+          "src": 251461,
+          "dst": 326285,
+          "minute": 11844,
+          "amount_usd": 3788.09,
+          "kind": "history",
+          "rank": 4373116
+        },
+        {
+          "src": 251461,
+          "dst": 326285,
+          "minute": 11849,
+          "amount_usd": 1484.37,
+          "kind": "history",
+          "rank": 4375377
+        },
+        {
+          "src": 384880,
+          "dst": 270945,
+          "minute": 11855,
+          "amount_usd": 356.2,
+          "kind": "history",
+          "rank": 4378230
+        }
+      ]
+    },
+    "window_minutes": 4320,
+    "cap_1hop": 10,
+    "cap_2hop": 4
+  },
+  "model_version": "export-6109de3b6779:07b6e09d58ca",
+  "export_key": "export-6109de3b6779",
+  "narrative": "On day 9 at 07:08, account 235309 (bank 01522) sent 14,246.13 USD by ACH to account 222097 (bank 014325). It crossed banks (01522 to 014325). The model scored it 0.9854 (calibrated probability 1.000), at or above the alert threshold 0.0223 (rate tag 0p005). Top drivers (log-odds contributions): payment_format = ACH (+3.409); in_port = 2.197 (+2.198); log_amount_usd = 9.564 (+1.624); pair_is_new = 1 (+1.235); v_in_gap = 235 (+1.130); base value -10.744. No rule fired. Matched typology (decision tree): FAN-IN (u_out_newcp_1d = 0 <= 0.5; the receiver was paid by 7 distinct accounts in the case subgraph (g_dst_in_deg = 7 > 2.5); v_in_same_fmt_1d = 5 <= 5.5; v_in_mean_3d = 8.51 > 8.078; v_in_mean_3d = 8.51 <= 9.698; 72% of 60 validation cases at this leaf were FAN-IN). The causal subgraph shows 18 accounts and 38 earlier payments from the 3 days before the alert."
+}

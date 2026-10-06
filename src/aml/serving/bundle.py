@@ -557,6 +557,74 @@ def _bits_equal(a: np.ndarray, b: np.ndarray, bits: type) -> np.ndarray:
     return eq if eq.ndim == 1 else eq.all(axis=1)
 
 
+CHECKS = ("features", "severities", "trunc", "rule_flags", "scores", "alerts")
+
+
+def compare_outputs(
+    *,
+    x32: np.ndarray,
+    sev: np.ndarray,
+    trunc: np.ndarray,
+    p: np.ndarray,
+    row_id: pl.Series,
+    ref_features: pl.DataFrame,
+    ref_scores: pl.DataFrame,
+    ref_alerts: pl.DataFrame,
+    names: list[str],
+    thresholds: dict[str, Any],
+) -> dict[str, int]:
+    """Rows that differ from the reference outputs, per check in CHECKS (0 = bit-exact).
+
+    x32: the float32 model inputs (rows x names); sev: the 7 float64 severities; trunc: the 3
+    trunc flags; p: the float64 scores; row_id: the rows compared, which every reference frame
+    must hold in the same order (else BundleVerificationError). Features, severities and scores
+    are compared as bit patterns; rule flags and alerts are recomputed with M1's apply_thresholds
+    and the model thresholds, as the export did.
+    """
+    if not all(r["row_id"].equals(row_id) for r in (ref_features, ref_scores, ref_alerts)):
+        raise BundleVerificationError("reference rows differ from the slice rows")
+    tags, head = thresholds["rate_tags"], thresholds["headline_rate_tag"]
+    ref_x = ref_features.select(names).to_numpy().astype(np.float32, copy=False)
+    ref_sev = ref_features.select(SEVERITY_COLUMNS).to_numpy().astype(np.float64)
+    bad: dict[str, int] = {}
+    bad["features"] = int((~_bits_equal(x32, ref_x, np.uint32)).sum())
+    bad["severities"] = int((~_bits_equal(sev, ref_sev, np.uint64)).sum())
+    bad["trunc"] = int((trunc != ref_features.select(TRUNC_COLUMNS).to_numpy()).any(axis=1).sum())
+    sev_df = pl.DataFrame(
+        {"row_id": row_id, **{s: sev[:, j] for j, s in enumerate(SEVERITY_COLUMNS)}}
+    )
+    rules = rule_flags(sev_df, thresholds["rules"]["thresholds"], tags, head)
+    bad["rule_flags"] = _rows_differ(rules, ref_alerts)
+    ref_p = ref_scores[SCORE].to_numpy().astype(np.float64)
+    bad["scores"] = int((~_bits_equal(p, ref_p, np.uint64)).sum())
+    alerts = model_alerts(row_id, p, thresholds["model"], tags)
+    bad["alerts"] = _rows_differ(alerts, ref_alerts)
+    return bad
+
+
+def reference_slice(bundle_dir: Path, start: int, n: int) -> dict[str, Any]:
+    """The reference inputs of `compare_outputs` for slice rows [start, start + n).
+
+    Reference row i is slice row i, i.e. the event of rank `metadata.next_rank + i` (the M5
+    stream's offset i), so any rank-contiguous subrange of a stream can be checked on its own.
+    Returns ref_features, ref_scores, ref_alerts, names and thresholds.
+    """
+    d = Path(bundle_dir)
+    if start < 0 or n < 0:
+        raise ValueError(f"bad reference range start={start} n={n}")
+
+    def rows(rel: str) -> pl.DataFrame:
+        return pl.scan_parquet(d / rel).slice(start, n).collect()
+
+    return {
+        "ref_features": rows(REF_FEATURES),
+        "ref_scores": rows(REF_SCORES),
+        "ref_alerts": rows(REF_ALERTS),
+        "names": list(read_json(d / FEATURE_SPEC)["model"]["feature_names"]),
+        "thresholds": read_json(d / THRESHOLDS),
+    }
+
+
 def _verify(bundle_dir: Path) -> dict[str, Any]:
     """Replay the slice from the bundle's snapshot and compare with the reference outputs."""
     t0 = time.perf_counter()
@@ -568,7 +636,6 @@ def _verify(bundle_dir: Path) -> dict[str, Any]:
     if list(booster.feature_name()) != names:
         raise BundleVerificationError("booster features differ from feature_spec.json")
     thresholds = read_json(bundle_dir / THRESHOLDS)
-    tags, head = thresholds["rate_tags"], thresholds["headline_rate_tag"]
 
     slice_df = pl.read_parquet(bundle_dir / SLICE)
     n = slice_df.height
@@ -586,33 +653,20 @@ def _verify(bundle_dir: Path) -> dict[str, Any]:
     flush = eng.advance(int(slice_df["minute"][-1]) + 1)
     mat = np.frombuffer(buf, dtype=np.float64).reshape(n, spec.row_len)
 
-    ref = pl.read_parquet(bundle_dir / REF_FEATURES)
-    ref_scores = pl.read_parquet(bundle_dir / REF_SCORES)
-    ref_alerts = pl.read_parquet(bundle_dir / REF_ALERTS)
-    same = [r["row_id"].equals(slice_df["row_id"]) for r in (ref, ref_scores, ref_alerts)]
-    if not all(same):
-        raise BundleVerificationError("reference rows differ from the slice rows")
-
     x = np.asarray(mat[:, idx], np.float64).astype(np.float32)
-    bad: dict[str, int] = {}
-    ok = _bits_equal(x, ref.select(names).to_numpy().astype(np.float32, copy=False), np.uint32)
-    bad["features"] = int((~ok).sum())
-    sev = mat[:, spec.i_sev : spec.i_sev + len(SEVERITY_COLUMNS)]
-    ok = _bits_equal(sev, ref.select(SEVERITY_COLUMNS).to_numpy().astype(np.float64), np.uint64)
-    bad["severities"] = int((~ok).sum())
-    trunc = mat[:, [spec.i_rule_trunc, spec.i_cyc_trunc, spec.i_sg_trunc]]
-    bad["trunc"] = int((trunc != ref.select(TRUNC_COLUMNS).to_numpy()).any(axis=1).sum())
-
-    sev_df = pl.DataFrame(
-        {"row_id": slice_df["row_id"], **{s: sev[:, j] for j, s in enumerate(SEVERITY_COLUMNS)}}
-    )
-    rules = rule_flags(sev_df, thresholds["rules"]["thresholds"], tags, head)
-    bad["rule_flags"] = _rows_differ(rules, ref_alerts)
     p = np.asarray(booster.predict(x, num_threads=1), dtype=np.float64)
-    ref_p = ref_scores[SCORE].to_numpy().astype(np.float64)
-    bad["scores"] = int((~_bits_equal(p, ref_p, np.uint64)).sum())
-    alerts = model_alerts(slice_df["row_id"], p, thresholds["model"], tags)
-    bad["alerts"] = _rows_differ(alerts, ref_alerts)
+    bad = compare_outputs(
+        x32=x,
+        sev=mat[:, spec.i_sev : spec.i_sev + len(SEVERITY_COLUMNS)],
+        trunc=mat[:, [spec.i_rule_trunc, spec.i_cyc_trunc, spec.i_sg_trunc]],
+        p=p,
+        row_id=slice_df["row_id"],
+        ref_features=pl.read_parquet(bundle_dir / REF_FEATURES),
+        ref_scores=pl.read_parquet(bundle_dir / REF_SCORES),
+        ref_alerts=pl.read_parquet(bundle_dir / REF_ALERTS),
+        names=names,
+        thresholds=thresholds,
+    )
     k = min(ROW_BY_ROW_ROWS, n)
     single = np.array([booster.predict(x[i : i + 1], num_threads=1)[0] for i in range(k)])
     bad["row_by_row"] = int((~_bits_equal(single.astype(np.float64), p[:k], np.uint64)).sum())

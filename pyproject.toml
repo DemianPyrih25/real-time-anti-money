@@ -77,4 +77,5 @@ testpaths = ["tests"]
 addopts = "-ra"
 markers = [
     "slow: slower end-to-end tests on the synthetic fixture",
+    "kafka: needs a Kafka broker (AML_TEST_KAFKA); skipped without one unless AML_REQUIRE_KAFKA=1",
 ]
